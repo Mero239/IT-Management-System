@@ -6,12 +6,18 @@ import os
 import uuid
 from database import get_db
 from paths import data_path
+from routes.auth import get_current_engineer
 import models, schemas
 
 router = APIRouter(prefix="/agreements", tags=["agreements"])
 
 AGREEMENTS_DIR = data_path("agreements")
 os.makedirs(AGREEMENTS_DIR, exist_ok=True)
+
+
+def _require_admin(engineer):
+    if engineer.permission_level != "admin":
+        raise HTTPException(403, "هذا الإجراء للمسؤولين فقط")
 
 
 @router.get("/", response_model=List[schemas.SupportAgreementOut])
@@ -24,7 +30,9 @@ async def upload_agreement(
     title: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    engineer=Depends(get_current_engineer),
 ):
+    _require_admin(engineer)
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "الملفات المسموح بها PDF فقط")
 
@@ -62,7 +70,8 @@ def download_agreement(agreement_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{agreement_id}")
-def delete_agreement(agreement_id: int, db: Session = Depends(get_db)):
+def delete_agreement(agreement_id: int, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     obj = db.query(models.SupportAgreement).filter(models.SupportAgreement.id == agreement_id).first()
     if not obj:
         raise HTTPException(404, "الملف غير موجود")

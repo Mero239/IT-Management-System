@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react'
 import Header from '../components/Header'
-import Modal from '../components/Modal'
 import TicketQR from '../components/TicketQR'
 import { engineersApi } from '../api/client'
-import { useLanguage } from '../context/LanguageContext'
-
-const ROLES = ['IT Engineer', 'Support Technician', 'Network Engineer', 'Systems Admin', 'IT Manager']
 
 const PERMISSION_LEVELS = {
   admin: {
@@ -42,23 +38,17 @@ const PERMISSION_ACTIONS = [
   { key: 'delete_ticket',     label: 'حذف التذكرة' },
 ]
 
-const emptyForm = { name: '', email: '', role: 'IT Engineer', active: 'true', permission_level: 'engineer' }
-
+// Read-only team directory. Adding/editing/deleting engineers or changing
+// permissions is admin-only functionality — that lives exclusively in
+// AdminEngineers.jsx (/admin/engineers), guarded by AdminGuard + a
+// server-side admin check. This page must stay view-only.
 export default function ITTeam() {
-  const { t } = useLanguage()
   const [engineers, setEngineers] = useState([])
   const [matrix, setMatrix] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(false)
-  const [permModal, setPermModal] = useState(false)
-  const [permTarget, setPermTarget] = useState(null)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ ...emptyForm })
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [tab, setTab] = useState('team') // team | matrix
+  const [tab, setTab] = useState('team') // team | matrix | qr
 
-  const load = () => {
+  useEffect(() => {
     setLoading(true)
     Promise.all([
       engineersApi.list(),
@@ -67,42 +57,13 @@ export default function ITTeam() {
       setEngineers(e.data)
       setMatrix(m.data)
     }).finally(() => setLoading(false))
-  }
-
-  useEffect(() => { load() }, [])
-
-  const openAdd  = () => { setEditing(null); setForm({ ...emptyForm }); setError(''); setModal(true) }
-  const openEdit = (e) => { setEditing(e); setForm({ ...e }); setError(''); setModal(true) }
-  const openPerm = (e) => { setPermTarget(e); setPermModal(true) }
-
-  const handleSave = async () => {
-    if (!form.name.trim() || !form.email.trim()) { setError('الاسم والبريد مطلوبان'); return }
-    setSaving(true); setError('')
-    try {
-      if (editing) await engineersApi.update(editing.id, form)
-      else await engineersApi.create(form)
-      setModal(false); load()
-    } catch (e) {
-      setError(e.response?.data?.detail || e.message || 'Error')
-    } finally { setSaving(false) }
-  }
-
-  const handleSetPermission = async (id, level) => {
-    await engineersApi.setPermission(id, level)
-    setPermModal(false)
-    load()
-  }
-
-  const handleDelete = async (id, name) => {
-    if (!confirm(`حذف ${name}؟`)) return
-    await engineersApi.delete(id); load()
-  }
+  }, [])
 
   const byLevel = (level) => engineers.filter(e => e.permission_level === level)
 
   return (
     <div className="space-y-5 max-w-5xl">
-      <Header title="فريق IT" subtitle="إدارة المهندسين وصلاحياتهم على التذاكر" />
+      <Header title="فريق IT" subtitle="دليل الفريق وصلاحياتهم على التذاكر" />
 
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -140,77 +101,58 @@ export default function ITTeam() {
         ))}
       </div>
 
-      {/* ── TAB: TEAM ── */}
+      {/* ── TAB: TEAM (read-only directory) ── */}
       {tab === 'team' && (
-        <>
-          <div className="flex justify-end">
-            <button onClick={openAdd} className="btn-primary">+ إضافة مهندس</button>
+        loading ? (
+          <div className="card text-center py-12 text-slate-400">جاري التحميل...</div>
+        ) : (
+          <div className="card !p-0 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="table-th w-8 text-center">#</th>
+                  <th className="table-th">المهندس</th>
+                  <th className="table-th">البريد الإلكتروني</th>
+                  <th className="table-th">الدور</th>
+                  <th className="table-th text-center">الصلاحية</th>
+                  <th className="table-th text-center">الحالة</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {engineers.map((eng, i) => {
+                  const perm = PERMISSION_LEVELS[eng.permission_level] || PERMISSION_LEVELS.viewer
+                  return (
+                    <tr key={eng.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}>
+                      <td className="table-td text-center text-slate-400 text-xs">{i + 1}</td>
+                      <td className="table-td">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-yellow-100 text-yellow-700 font-bold text-sm flex items-center justify-center shrink-0">
+                            {eng.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
+                          </div>
+                          <span className="font-semibold text-slate-800">{eng.name}</span>
+                        </div>
+                      </td>
+                      <td className="table-td text-slate-500 text-sm">
+                        <a href={`mailto:${eng.email}`} className="hover:text-yellow-600 transition-colors">{eng.email}</a>
+                      </td>
+                      <td className="table-td">
+                        <span className="badge bg-yellow-50 text-yellow-700">{eng.role}</span>
+                      </td>
+                      <td className="table-td text-center">
+                        <span className={`badge border ${perm.color}`}>{perm.icon} {perm.labelAr}</span>
+                      </td>
+                      <td className="table-td text-center">
+                        {eng.active === 'true'
+                          ? <span className="badge bg-yellow-100 text-yellow-700">🟢 نشط</span>
+                          : <span className="badge bg-slate-100 text-slate-500">⚪ غير نشط</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
-
-          {loading ? (
-            <div className="card text-center py-12 text-slate-400">جاري التحميل...</div>
-          ) : (
-            <div className="card !p-0 overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-100">
-                  <tr>
-                    <th className="table-th w-8 text-center">#</th>
-                    <th className="table-th">المهندس</th>
-                    <th className="table-th">البريد الإلكتروني</th>
-                    <th className="table-th">الدور</th>
-                    <th className="table-th text-center">الصلاحية</th>
-                    <th className="table-th text-center">الحالة</th>
-                    <th className="table-th text-center">إجراءات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {engineers.map((eng, i) => {
-                    const perm = PERMISSION_LEVELS[eng.permission_level] || PERMISSION_LEVELS.viewer
-                    return (
-                      <tr key={eng.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}>
-                        <td className="table-td text-center text-slate-400 text-xs">{i + 1}</td>
-                        <td className="table-td">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-yellow-100 text-yellow-700 font-bold text-sm flex items-center justify-center shrink-0">
-                              {eng.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
-                            </div>
-                            <span className="font-semibold text-slate-800">{eng.name}</span>
-                          </div>
-                        </td>
-                        <td className="table-td text-slate-500 text-sm">
-                          <a href={`mailto:${eng.email}`} className="hover:text-yellow-600 transition-colors">{eng.email}</a>
-                        </td>
-                        <td className="table-td">
-                          <span className="badge bg-yellow-50 text-yellow-700">{eng.role}</span>
-                        </td>
-                        <td className="table-td text-center">
-                          <button
-                            onClick={() => openPerm(eng)}
-                            className={`badge border ${perm.color} hover:opacity-80 transition-opacity cursor-pointer`}
-                            title="انقر لتغيير الصلاحية"
-                          >
-                            {perm.icon} {perm.labelAr}
-                          </button>
-                        </td>
-                        <td className="table-td text-center">
-                          {eng.active === 'true'
-                            ? <span className="badge bg-yellow-100 text-yellow-700">🟢 نشط</span>
-                            : <span className="badge bg-slate-100 text-slate-500">⚪ غير نشط</span>}
-                        </td>
-                        <td className="table-td text-center">
-                          <div className="flex gap-2 justify-center">
-                            <button onClick={() => openEdit(eng)} className="btn-secondary !text-xs !px-3 !py-1.5">تعديل</button>
-                            <button onClick={() => handleDelete(eng.id, eng.name)} className="btn-danger">حذف</button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
+        )
       )}
 
       {/* ── TAB: QR CODE ── */}
@@ -220,7 +162,7 @@ export default function ITTeam() {
         </div>
       )}
 
-      {/* ── TAB: PERMISSION MATRIX ── */}
+      {/* ── TAB: PERMISSION MATRIX (read-only reference) ── */}
       {tab === 'matrix' && matrix && (
         <div className="space-y-4">
           <div className="card !p-0 overflow-hidden">
@@ -292,101 +234,6 @@ export default function ITTeam() {
           </div>
         </div>
       )}
-
-      {/* ── Change Permission Modal ── */}
-      <Modal isOpen={permModal} onClose={() => setPermModal(false)} title={`صلاحيات ${permTarget?.name}`} size="md">
-        {permTarget && (
-          <div className="space-y-3">
-            <p className="text-sm text-slate-500">اختر مستوى الصلاحية للمهندس على التذاكر:</p>
-            {Object.entries(PERMISSION_LEVELS).map(([level, p]) => {
-              const isCurrent = permTarget.permission_level === level
-              return (
-                <button
-                  key={level}
-                  onClick={() => handleSetPermission(permTarget.id, level)}
-                  className={`w-full flex items-start gap-4 p-4 rounded-xl border-2 transition-all text-start ${
-                    isCurrent
-                      ? `${p.color} shadow-sm`
-                      : 'border-slate-100 hover:border-slate-200 bg-white'
-                  }`}
-                >
-                  <span className="text-2xl mt-0.5">{p.icon}</span>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-800">{p.labelAr}</span>
-                      <span className="text-xs text-slate-400">({p.label})</span>
-                      {isCurrent && <span className="badge bg-yellow-100 text-yellow-700 text-xs">الحالي</span>}
-                    </div>
-                    <p className="text-sm text-slate-500 mt-0.5">{p.desc}</p>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {PERMISSION_ACTIONS.filter(a => matrix?.[level]?.[a.key]).map(a => (
-                        <span key={a.key} className="text-xs bg-white border border-current border-opacity-20 px-2 py-0.5 rounded-full text-slate-600">
-                          {a.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </Modal>
-
-      {/* ── Add / Edit Modal ── */}
-      <Modal isOpen={modal} onClose={() => setModal(false)} title={editing ? 'تعديل مهندس' : 'إضافة مهندس'}>
-        {error && <div className="mb-3 p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
-        <div className="space-y-4">
-          <div>
-            <label className="form-label">الاسم الكامل</label>
-            <input className="form-input" value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-          </div>
-          <div>
-            <label className="form-label">البريد الإلكتروني</label>
-            <input type="email" className="form-input" value={form.email}
-              onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="form-label">الدور الوظيفي</label>
-              <select className="form-select" value={form.role}
-                onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">الحالة</label>
-              <select className="form-select" value={form.active}
-                onChange={e => setForm(f => ({ ...f, active: e.target.value }))}>
-                <option value="true">🟢 نشط</option>
-                <option value="false">⚪ غير نشط</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="form-label">مستوى الصلاحية</label>
-            <div className="grid grid-cols-3 gap-2">
-              {Object.entries(PERMISSION_LEVELS).map(([level, p]) => (
-                <button key={level} type="button"
-                  onClick={() => setForm(f => ({ ...f, permission_level: level }))}
-                  className={`p-3 rounded-xl border-2 text-center transition-all ${
-                    form.permission_level === level ? `${p.color} shadow-sm` : 'border-slate-100 hover:border-slate-200'
-                  }`}>
-                  <div className="text-xl mb-1">{p.icon}</div>
-                  <div className="text-xs font-bold text-slate-700">{p.labelAr}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-3 mt-5 pt-4 border-t border-slate-100">
-          <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 justify-center">
-            {saving ? 'جاري الحفظ...' : editing ? 'حفظ التعديلات' : 'إضافة'}
-          </button>
-          <button onClick={() => setModal(false)} className="btn-secondary">إلغاء</button>
-        </div>
-      </Modal>
     </div>
   )
 }

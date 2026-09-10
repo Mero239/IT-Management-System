@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from database import get_db
+from routes.auth import get_current_engineer
 import models, schemas
 
 router = APIRouter(prefix="/requests", tags=["requests"])
@@ -33,7 +34,7 @@ def get_request(req_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=schemas.NeedsRequestOut)
-def create_request(req: schemas.NeedsRequestCreate, db: Session = Depends(get_db)):
+def create_request(req: schemas.NeedsRequestCreate, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
     obj = models.NeedsRequest(**req.model_dump())
     db.add(obj)
     db.commit()
@@ -42,7 +43,7 @@ def create_request(req: schemas.NeedsRequestCreate, db: Session = Depends(get_db
 
 
 @router.put("/{req_id}", response_model=schemas.NeedsRequestOut)
-def update_request(req_id: int, req: schemas.NeedsRequestCreate, db: Session = Depends(get_db)):
+def update_request(req_id: int, req: schemas.NeedsRequestCreate, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
     obj = db.query(models.NeedsRequest).filter(models.NeedsRequest.id == req_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="الطلب غير موجود")
@@ -54,7 +55,7 @@ def update_request(req_id: int, req: schemas.NeedsRequestCreate, db: Session = D
 
 
 @router.patch("/{req_id}/status")
-def update_request_status(req_id: int, status: str, db: Session = Depends(get_db)):
+def update_request_status(req_id: int, status: str, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
     obj = db.query(models.NeedsRequest).filter(models.NeedsRequest.id == req_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="الطلب غير موجود")
@@ -67,7 +68,7 @@ def update_request_status(req_id: int, status: str, db: Session = Depends(get_db
 
 
 @router.delete("/{req_id}")
-def delete_request(req_id: int, db: Session = Depends(get_db)):
+def delete_request(req_id: int, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
     obj = db.query(models.NeedsRequest).filter(models.NeedsRequest.id == req_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="الطلب غير موجود")

@@ -21,6 +21,10 @@ class MonitorConfig(BaseModel):
     alert_interval_minutes: Optional[int] = None
     thresholds: Optional[dict] = None
     servers: Optional[list[dict]] = None
+    whatsapp_enabled: Optional[bool] = None
+    whatsapp_access_token: Optional[str] = None
+    whatsapp_phone_number_id: Optional[str] = None
+    whatsapp_recipients: Optional[list[str]] = None
 
 
 def _require_admin(engineer):
@@ -39,6 +43,7 @@ def get_config(engineer=Depends(get_current_engineer)):
         {**s, "ssh_pass": "••••" if s.get("ssh_pass") else ""}
         for s in cfg.get("servers", [])
     ]
+    safe["whatsapp_access_token"] = "••••" if cfg.get("whatsapp_access_token") else ""
     return safe
 
 
@@ -56,6 +61,10 @@ def save_config(body: MonitorConfig, engineer=Depends(get_current_engineer)):
             if srv.get("ssh_pass") in ("", "••••"):
                 old = existing.get(srv["name"], {})
                 srv["ssh_pass"] = old.get("ssh_pass", "")
+
+    # Masked token placeholder means "keep the existing one"
+    if updates.get("whatsapp_access_token") in ("", "••••"):
+        updates.pop("whatsapp_access_token", None)
 
     merged = {**current, **updates}
     _save(merged)
@@ -92,6 +101,9 @@ def get_status(engineer=Depends(get_current_engineer)):
         "thresholds": cfg.get("thresholds", {}),
         "local":      ls,
         "servers":    servers_status,
+        "whatsapp_enabled":          cfg.get("whatsapp_enabled", False),
+        "whatsapp_configured":       bool(cfg.get("whatsapp_access_token") and cfg.get("whatsapp_phone_number_id")),
+        "whatsapp_recipients_count": len(cfg.get("whatsapp_recipients", [])),
     }
 
 

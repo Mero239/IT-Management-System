@@ -3,11 +3,17 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 from database import get_db
+from routes.auth import get_current_engineer
 import models
 
 router = APIRouter(prefix="/engineers", tags=["engineers"])
 
 VALID_PERMISSIONS = ["admin", "engineer", "viewer"]
+
+
+def _require_admin(engineer):
+    if engineer.permission_level != "admin":
+        raise HTTPException(403, "هذا الإجراء للمسؤولين فقط")
 
 # Canonical permission matrix — single source of truth
 PERMISSION_MATRIX = {
@@ -70,7 +76,8 @@ def list_engineers(db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=EngineerOut)
-def create_engineer(data: EngineerCreate, db: Session = Depends(get_db)):
+def create_engineer(data: EngineerCreate, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     if data.permission_level not in VALID_PERMISSIONS:
         raise HTTPException(400, f"permission_level must be one of {VALID_PERMISSIONS}")
     existing = db.query(models.ITEngineer).filter(models.ITEngineer.email == data.email).first()
@@ -84,7 +91,8 @@ def create_engineer(data: EngineerCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{eid}", response_model=EngineerOut)
-def update_engineer(eid: int, data: EngineerCreate, db: Session = Depends(get_db)):
+def update_engineer(eid: int, data: EngineerCreate, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     if data.permission_level not in VALID_PERMISSIONS:
         raise HTTPException(400, f"permission_level must be one of {VALID_PERMISSIONS}")
     obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
@@ -98,7 +106,8 @@ def update_engineer(eid: int, data: EngineerCreate, db: Session = Depends(get_db
 
 
 @router.patch("/{eid}/permission")
-def set_permission(eid: int, permission_level: str, db: Session = Depends(get_db)):
+def set_permission(eid: int, permission_level: str, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     if permission_level not in VALID_PERMISSIONS:
         raise HTTPException(400, f"Must be one of {VALID_PERMISSIONS}")
     obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
@@ -131,7 +140,8 @@ def engineer_stats(eid: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{eid}/active")
-def toggle_active(eid: int, active: str, db: Session = Depends(get_db)):
+def toggle_active(eid: int, active: str, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     if active not in ("true", "false"):
         raise HTTPException(400, "active must be 'true' or 'false'")
     obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
@@ -143,7 +153,8 @@ def toggle_active(eid: int, active: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/{eid}")
-def delete_engineer(eid: int, db: Session = Depends(get_db)):
+def delete_engineer(eid: int, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
     if not obj:
         raise HTTPException(404, "Not found")

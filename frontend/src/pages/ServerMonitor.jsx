@@ -321,6 +321,55 @@ function SettingsTab({ t }) {
         </div>
       </div>
 
+      {/* WhatsApp */}
+      <div className="card !p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-slate-700 text-sm flex items-center gap-2">💬 {t('mon.whatsapp')}</h3>
+          <button
+            onClick={() => setConfig(c => ({ ...c, whatsapp_enabled: !c.whatsapp_enabled }))}
+            className={`relative w-11 h-6 rounded-full transition-colors ${config.whatsapp_enabled ? 'bg-yellow-500' : 'bg-slate-300'}`}
+          >
+            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${config.whatsapp_enabled ? 'right-1' : 'left-1'}`} />
+          </button>
+        </div>
+        <p className="text-xs text-slate-400">{t('mon.whatsappHint')}</p>
+        <div>
+          <label className="form-label">{t('mon.whatsappToken')}</label>
+          <input
+            className="form-input !text-sm font-mono"
+            type="password"
+            placeholder={t('mon.whatsappTokenPlh')}
+            value={config.whatsapp_access_token || ''}
+            onChange={e => setConfig(c => ({ ...c, whatsapp_access_token: e.target.value }))}
+            dir="ltr"
+          />
+        </div>
+        <div>
+          <label className="form-label">{t('mon.whatsappPhoneId')}</label>
+          <input
+            className="form-input !text-sm font-mono"
+            placeholder="1029384756..."
+            value={config.whatsapp_phone_number_id || ''}
+            onChange={e => setConfig(c => ({ ...c, whatsapp_phone_number_id: e.target.value }))}
+            dir="ltr"
+          />
+        </div>
+        <div>
+          <label className="form-label">{t('mon.whatsappRecipients')}</label>
+          <input
+            className="form-input !text-sm font-mono"
+            placeholder="201001234567, 201127601110"
+            value={(config.whatsapp_recipients || []).join(', ')}
+            onChange={e => setConfig(c => ({
+              ...c,
+              whatsapp_recipients: e.target.value.split(',').map(s => s.trim()).filter(Boolean),
+            }))}
+            dir="ltr"
+          />
+          <p className="text-xs text-slate-400 mt-1">{t('mon.whatsappRecipientsHint')}</p>
+        </div>
+      </div>
+
       {/* Servers */}
       <div className="card !p-0 overflow-hidden">
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">

@@ -15,6 +15,7 @@ logger = logging.getLogger("monitor")
 
 CONFIG_PATH = data_path("monitor_config.json")
 TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
+WHATSAPP_API = "https://graph.facebook.com/v20.0/{phone_number_id}/messages"
 
 DEFAULT_CONFIG = {
     "enabled": False,
@@ -22,6 +23,13 @@ DEFAULT_CONFIG = {
     "schedule": ["07:30", "11:00", "15:00", "16:50"],
     "alert_interval_minutes": 60,
     "thresholds": {"cpu": 85, "ram": 90, "disk": 85},
+    # WhatsApp (Meta Cloud API) — bootstrap defaults only, real values live in
+    # the gitignored monitor_config.json. Recipients must have messaged the
+    # sending number first (or a template must be used) per WhatsApp policy.
+    "whatsapp_enabled": False,
+    "whatsapp_access_token": "",
+    "whatsapp_phone_number_id": "",
+    "whatsapp_recipients": [],
     # Bootstrap defaults only — real values live in the gitignored monitor_config.json
     # and take over via load_config()'s shallow merge. Never hardcode real credentials here.
     "servers": [
@@ -67,6 +75,43 @@ def send_telegram(channel_id: str, message: str):
         requests.post(url, json={"chat_id": channel_id, "text": message, "parse_mode": "HTML"}, timeout=10)
     except Exception as e:
         logger.warning(f"Telegram alert error: {e}")
+
+
+def _tg_html_to_whatsapp(text: str) -> str:
+    """Convert Telegram's <b>..</b> HTML formatting to WhatsApp's *bold* markup."""
+    return text.replace("<b>", "*").replace("</b>", "*")
+
+
+def send_whatsapp(cfg: dict, message: str):
+    """Send a plain-text WhatsApp message via Meta's Cloud API to every configured recipient.
+
+    Note: outside the 24h customer-service window WhatsApp only allows
+    pre-approved message templates — a free-text send like this one will be
+    rejected for recipients who haven't messaged the sending number recently.
+    """
+    if not cfg.get("whatsapp_enabled"):
+        return
+    token = cfg.get("whatsapp_access_token", "")
+    phone_number_id = cfg.get("whatsapp_phone_number_id", "")
+    recipients = cfg.get("whatsapp_recipients", [])
+    if not token or not phone_number_id or not recipients:
+        return
+
+    url = WHATSAPP_API.format(phone_number_id=phone_number_id)
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    for raw_number in recipients:
+        to = "".join(ch for ch in raw_number if ch.isdigit())
+        if not to:
+            continue
+        try:
+            resp = requests.post(
+                url, headers=headers, timeout=10,
+                json={"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": message}},
+            )
+            if resp.status_code >= 400:
+                logger.warning(f"WhatsApp send failed for {to}: {resp.status_code} {resp.text[:300]}")
+        except Exception as e:
+            logger.warning(f"WhatsApp alert error for {to}: {e}")
 
 
 # ── Server checks ────────────────────────────────────────────────────────────
@@ -218,6 +263,7 @@ class MonitorService:
         cfg = load_config()
         report = build_report(cfg)
         send_telegram(cfg["channel_id"], report)
+        send_whatsapp(cfg, _tg_html_to_whatsapp(report))
         return report
 
     def _loop(self):
@@ -238,6 +284,7 @@ class MonitorService:
                     try:
                         report = build_report(cfg)
                         send_telegram(channel_id, report)
+                        send_whatsapp(cfg, _tg_html_to_whatsapp(report))
                         logger.info(f"Scheduled report sent at {now_str}")
                     except Exception as e:
                         logger.error(f"Report error: {e}")
@@ -252,7 +299,9 @@ class MonitorService:
                     for alert in check_local_alerts(cfg) + check_server_alerts(cfg):
                         last = self._last_alert_times.get(alert, 0)
                         if now_ts - last > alert_interval:
-                            send_telegram(channel_id, f"⚠️ <b>تنبيه MOBICA IT</b>\n{alert}")
+                            alert_msg = f"⚠️ <b>تنبيه MOBICA IT</b>\n{alert}"
+                            send_telegram(channel_id, alert_msg)
+                            send_whatsapp(cfg, _tg_html_to_whatsapp(alert_msg))
                             self._last_alert_times[alert] = now_ts
                 except Exception as e:
                     logger.error(f"Alert check error: {e}")

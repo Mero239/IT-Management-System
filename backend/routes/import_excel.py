@@ -4,6 +4,7 @@ import openpyxl
 import io
 import json
 from database import get_db
+from routes.auth import get_current_engineer
 import models
 
 router = APIRouter(prefix="/import", tags=["import"])
@@ -56,7 +57,7 @@ def get_or_create_dept(name, db):
 
 
 @router.post("/preview")
-async def preview_excel(file: UploadFile = File(...)):
+async def preview_excel(file: UploadFile = File(...), engineer=Depends(get_current_engineer)):
     """Upload an Excel file and return headers + first 8 sample rows."""
     if not file.filename.lower().endswith(('.xlsx', '.xls', '.xlsm')):
         raise HTTPException(400, "Only Excel files (.xlsx / .xls) are supported")
@@ -91,6 +92,7 @@ async def execute_import(
     mapping: str = Form(...),   # JSON: {field: colIndex | fixedString}
     target: str = Form("requests"),   # "requests" | "assets" | "licensed_software"
     db: Session = Depends(get_db),
+    engineer=Depends(get_current_engineer),
 ):
     """Execute the import with the provided column mapping."""
     content = await file.read()

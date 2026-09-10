@@ -3,10 +3,16 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
 from database import get_db
+from routes.auth import get_current_engineer
 import models
 from services.email_agent import agent, load_config, save_config
 
 router = APIRouter(prefix="/email-agent", tags=["email-agent"])
+
+
+def _require_admin(engineer):
+    if engineer.permission_level != "admin":
+        raise HTTPException(403, "هذا الإجراء للمسؤولين فقط")
 
 
 class AgentConfig(BaseModel):
@@ -29,12 +35,13 @@ def _active_key(cfg: dict) -> bool:
 
 
 @router.get("/status")
-def get_status():
+def get_status(engineer=Depends(get_current_engineer)):
     return agent.get_status()
 
 
 @router.post("/start")
-def start_agent():
+def start_agent(engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     cfg = load_config()
     if not cfg.get("password"):
         raise HTTPException(400, "كلمة مرور البريد غير مضبوطة")
@@ -48,7 +55,8 @@ def start_agent():
 
 
 @router.post("/stop")
-def stop_agent():
+def stop_agent(engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     cfg = load_config()
     cfg["enabled"] = False
     save_config(cfg)
@@ -57,7 +65,8 @@ def stop_agent():
 
 
 @router.post("/test-connection")
-def test_connection():
+def test_connection(engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     result = agent.test_connection()
     if not result["ok"]:
         raise HTTPException(400, result.get("error", "Connection failed"))
@@ -65,7 +74,7 @@ def test_connection():
 
 
 @router.get("/config")
-def get_config():
+def get_config(engineer=Depends(get_current_engineer)):
     cfg = load_config()
     return {
         "enabled":        cfg.get("enabled", False),
@@ -83,7 +92,8 @@ def get_config():
 
 
 @router.put("/config")
-def update_config(data: AgentConfig):
+def update_config(data: AgentConfig, engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     cfg = load_config()
     cfg["enabled"]      = data.enabled
     cfg["imap_host"]    = data.imap_host
@@ -102,7 +112,7 @@ def update_config(data: AgentConfig):
 
 
 @router.get("/providers")
-def get_providers():
+def get_providers(engineer=Depends(get_current_engineer)):
     return [
         {
             "id":    "gemini",
@@ -132,7 +142,7 @@ def get_providers():
 
 
 @router.get("/history")
-def get_history(limit: int = 50, db: Session = Depends(get_db)):
+def get_history(limit: int = 50, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
     rows = (
         db.query(models.ProcessedEmail)
         .order_by(models.ProcessedEmail.processed_at.desc())

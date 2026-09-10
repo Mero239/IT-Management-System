@@ -2,9 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
+from routes.auth import get_current_engineer
 import models, schemas
 
 router = APIRouter(prefix="/ticket-routing", tags=["ticket-routing"])
+
+
+def _require_admin(engineer):
+    if engineer.permission_level != "admin":
+        raise HTTPException(403, "هذا الإجراء للمسؤولين فقط")
 
 
 @router.get("/", response_model=List[schemas.TicketRoutingRuleOut])
@@ -17,7 +23,8 @@ def list_rules(db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=schemas.TicketRoutingRuleOut)
-def create_rule(rule: schemas.TicketRoutingRuleCreate, db: Session = Depends(get_db)):
+def create_rule(rule: schemas.TicketRoutingRuleCreate, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     if not rule.keywords.strip():
         raise HTTPException(400, "يجب إدخال كلمة مفتاحية واحدة على الأقل")
     obj = models.TicketRoutingRule(**rule.model_dump())
@@ -28,7 +35,8 @@ def create_rule(rule: schemas.TicketRoutingRuleCreate, db: Session = Depends(get
 
 
 @router.put("/{rule_id}", response_model=schemas.TicketRoutingRuleOut)
-def update_rule(rule_id: int, rule: schemas.TicketRoutingRuleCreate, db: Session = Depends(get_db)):
+def update_rule(rule_id: int, rule: schemas.TicketRoutingRuleCreate, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     obj = db.query(models.TicketRoutingRule).filter(models.TicketRoutingRule.id == rule_id).first()
     if not obj:
         raise HTTPException(404, "القاعدة غير موجودة")
@@ -40,7 +48,8 @@ def update_rule(rule_id: int, rule: schemas.TicketRoutingRuleCreate, db: Session
 
 
 @router.delete("/{rule_id}")
-def delete_rule(rule_id: int, db: Session = Depends(get_db)):
+def delete_rule(rule_id: int, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
     obj = db.query(models.TicketRoutingRule).filter(models.TicketRoutingRule.id == rule_id).first()
     if not obj:
         raise HTTPException(404, "القاعدة غير موجودة")

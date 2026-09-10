@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
+from routes.auth import get_current_engineer
 import models
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -35,7 +36,7 @@ def unread_count(db: Session = Depends(get_db)):
 
 
 @router.patch("/{nid}/read")
-def mark_read(nid: int, db: Session = Depends(get_db)):
+def mark_read(nid: int, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
     obj = db.query(models.Notification).filter(models.Notification.id == nid).first()
     if obj:
         obj.is_read = "true"
@@ -44,7 +45,7 @@ def mark_read(nid: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/mark-all-read")
-def mark_all_read(db: Session = Depends(get_db)):
+def mark_all_read(db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
     db.query(models.Notification).filter(models.Notification.is_read == "false").update({"is_read": "true"})
     db.commit()
     return {"message": "ok"}

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ticketsApi, engineersApi } from '../api/client'
 import { useLanguage } from '../context/LanguageContext'
+import StatCard from '../components/StatCardCompact'
 
 const PRIORITY_STYLE = {
   critical: { badge: 'bg-red-100 text-red-700 border border-red-200',    dot: 'bg-red-500',    label: { ar: 'حرجة',    en: 'Critical' } },
@@ -35,22 +36,6 @@ function timeAgo(dateStr, language) {
 }
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
-function StatCard({ icon, label, value, color, pulse }) {
-  return (
-    <div className={`card !p-4 flex items-center gap-4 border-r-4 ${color}`}>
-      <div className="text-3xl relative">
-        {icon}
-        {pulse && value > 0 && (
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
-        )}
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-slate-800">{value}</p>
-        <p className="text-xs text-slate-500">{label}</p>
-      </div>
-    </div>
-  )
-}
 
 // ── Assign modal ──────────────────────────────────────────────────────────────
 function AssignModal({ ticket, engineers, onClose, onSave }) {

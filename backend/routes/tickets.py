@@ -6,6 +6,7 @@ import threading
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from database import get_db
+from routes.auth import get_current_engineer
 import models, schemas
 from services.ticket_routing import find_routed_engineer
 
@@ -300,7 +301,7 @@ def create_ticket(ticket: schemas.SupportTicketCreate, db: Session = Depends(get
 
 
 @router.put("/{ticket_id}", response_model=schemas.SupportTicketOut)
-def update_ticket(ticket_id: int, ticket: schemas.SupportTicketCreate, db: Session = Depends(get_db)):
+def update_ticket(ticket_id: int, ticket: schemas.SupportTicketCreate, db: Session = Depends(get_db), _engineer=Depends(get_current_engineer)):
     obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
@@ -324,6 +325,7 @@ def update_ticket_status(
     assigned_to: Optional[str] = None,
     resolution: Optional[str] = None,
     db: Session = Depends(get_db),
+    _engineer=Depends(get_current_engineer),
 ):
     obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
     if not obj:
@@ -347,7 +349,7 @@ def update_ticket_status(
 
 
 @router.patch("/{ticket_id}/assign")
-def assign_ticket(ticket_id: int, engineer_name: str, db: Session = Depends(get_db)):
+def assign_ticket(ticket_id: int, engineer_name: str, db: Session = Depends(get_db), _engineer=Depends(get_current_engineer)):
     obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
@@ -432,7 +434,7 @@ def list_comments(ticket_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{ticket_id}/comments")
-def add_comment(ticket_id: int, body: CommentIn, db: Session = Depends(get_db)):
+def add_comment(ticket_id: int, body: CommentIn, db: Session = Depends(get_db), _engineer=Depends(get_current_engineer)):
     if not db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first():
         raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
     c = models.TicketComment(
@@ -448,7 +450,7 @@ def add_comment(ticket_id: int, body: CommentIn, db: Session = Depends(get_db)):
 
 
 @router.delete("/{ticket_id}/comments/{comment_id}")
-def delete_comment(ticket_id: int, comment_id: int, db: Session = Depends(get_db)):
+def delete_comment(ticket_id: int, comment_id: int, db: Session = Depends(get_db), _engineer=Depends(get_current_engineer)):
     c = db.query(models.TicketComment).filter(
         models.TicketComment.id == comment_id,
         models.TicketComment.ticket_id == ticket_id,
@@ -462,7 +464,7 @@ def delete_comment(ticket_id: int, comment_id: int, db: Session = Depends(get_db
 
 
 @router.delete("/{ticket_id}")
-def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
+def delete_ticket(ticket_id: int, db: Session = Depends(get_db), _engineer=Depends(get_current_engineer)):
     obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="التذكرة غير موجودة")

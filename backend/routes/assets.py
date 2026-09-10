@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from database import get_db
+from routes.auth import get_current_engineer
 import models, schemas
 
 router = APIRouter(prefix="/assets", tags=["assets"])
@@ -36,7 +37,7 @@ def get_asset(asset_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=schemas.AssetOut)
-def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db)):
+def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
     if asset.serial_number:
         existing = db.query(models.Asset).filter(models.Asset.serial_number == asset.serial_number).first()
         if existing:
@@ -49,7 +50,7 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{asset_id}", response_model=schemas.AssetOut)
-def update_asset(asset_id: int, asset: schemas.AssetCreate, db: Session = Depends(get_db)):
+def update_asset(asset_id: int, asset: schemas.AssetCreate, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
     obj = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="الأصل غير موجود")
@@ -61,7 +62,7 @@ def update_asset(asset_id: int, asset: schemas.AssetCreate, db: Session = Depend
 
 
 @router.delete("/{asset_id}")
-def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+def delete_asset(asset_id: int, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
     obj = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="الأصل غير موجود")

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ticketsApi, engineersApi, departmentsApi } from '../api/client'
 import { useLanguage } from '../context/LanguageContext'
 import api from '../api/client'
+import StatCard from '../components/StatCardCompact'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -38,22 +39,6 @@ function timeAgo(dateStr, language) {
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
-function StatCard({ icon, label, value, color, pulse }) {
-  return (
-    <div className={`card !p-4 flex items-center gap-4 border-r-4 ${color}`}>
-      <div className="text-3xl relative">
-        {icon}
-        {pulse && value > 0 && (
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
-        )}
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-slate-800">{value}</p>
-        <p className="text-xs text-slate-500">{label}</p>
-      </div>
-    </div>
-  )
-}
 
 // ── Assign modal ──────────────────────────────────────────────────────────────
 
