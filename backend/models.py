@@ -241,6 +241,20 @@ class ProcessedEmail(Base):
     processed_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class TicketRoutingRule(Base):
+    """Auto-assign new tickets to an engineer when their title/description
+    contains one of the configured keywords (comma-separated, matched
+    case-insensitively as a substring — works for Arabic and English)."""
+    __tablename__ = "ticket_routing_rules"
+    id = Column(Integer, primary_key=True, index=True)
+    keywords = Column(Text, nullable=False)
+    engineer_name = Column(String(200), nullable=False)
+    engineer_email = Column(String(200), nullable=True)
+    active = Column(String(5), default="true")
+    priority_order = Column(Integer, default=0)   # lower checked first
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class LicensedSoftware(Base):
     """Licensed software register: software name, department, assigned user, license renewal date."""
     __tablename__ = "licensed_software"

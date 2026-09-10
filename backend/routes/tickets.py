@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 from database import get_db
 import models, schemas
+from services.ticket_routing import find_routed_engineer
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
@@ -283,12 +284,18 @@ def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
 @router.post("/", response_model=schemas.SupportTicketOut)
 def create_ticket(ticket: schemas.SupportTicketCreate, db: Session = Depends(get_db)):
     obj = models.SupportTicket(**ticket.model_dump())
+    if not obj.assigned_to:
+        routed = find_routed_engineer(obj.title, obj.description, db)
+        if routed:
+            obj.assigned_to = routed
     db.add(obj)
     db.commit()
     db.refresh(obj)
     source_map = {"email": "إيميل", "telegram": "تيليجرام", "whatsapp": "واتساب"}
     source_label = source_map.get(getattr(obj, "source", "manual"), "يدوي")
     _add_activity(db, obj.id, f"تم إنشاء التذكرة ({source_label})")
+    if obj.assigned_to and not ticket.assigned_to:
+        _add_activity(db, obj.id, f"تم التوجيه التلقائي إلى {obj.assigned_to} بناءً على محتوى التذكرة")
     return obj
 
 

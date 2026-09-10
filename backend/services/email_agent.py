@@ -196,14 +196,20 @@ class EmailAgent:
 
     def _create_ticket(self, ticket_data: dict, message_id: str, db_session) -> int:
         from models import SupportTicket
+        from services.ticket_routing import find_routed_engineer
+
+        title = ticket_data.get("title", "Support Request")[:200]
+        description = ticket_data.get("description", "")
+        assigned_to = find_routed_engineer(title, description, db_session) or self.config.get("auto_assign", "") or None
+
         ticket = SupportTicket(
-            title=ticket_data.get("title", "Support Request")[:200],
-            description=ticket_data.get("description", ""),
+            title=title,
+            description=description,
             requester_name=ticket_data.get("requester_name", ""),
             requester_email=ticket_data.get("requester_email", ""),
             priority=ticket_data.get("priority", "medium"),
             status="open",
-            assigned_to=self.config.get("auto_assign", "") or None,
+            assigned_to=assigned_to,
             source="email",
             source_email_id=message_id,
         )

@@ -110,6 +110,7 @@ class TelegramBot:
     def _create_ticket(self, text: str, name: str, username: str, priority: str, chat_id: int) -> int | None:
         from database import SessionLocal
         import models
+        from services.ticket_routing import find_routed_engineer
         db = SessionLocal()
         try:
             title = (text[:97] + "…") if len(text) > 100 else text
@@ -118,6 +119,7 @@ class TelegramBot:
                 description=text,
                 requester_name=name,
                 source="telegram",
+                assigned_to=find_routed_engineer(title, text, db),
             )
             # set priority safely
             if priority in ("critical", "high", "medium", "low"):

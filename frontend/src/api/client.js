@@ -85,6 +85,13 @@ export const agreementsApi = {
   downloadUrl: (id) => `${API_BASE}/agreements/${id}/download`,
 }
 
+export const ticketRoutingApi = {
+  list: () => api.get('/ticket-routing/'),
+  create: (data) => api.post('/ticket-routing/', data),
+  update: (id, data) => api.put(`/ticket-routing/${id}`, data),
+  delete: (id) => api.delete(`/ticket-routing/${id}`),
+}
+
 export const authApi = {
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
   confirmReset:   (token, new_password) => api.post('/auth/confirm-reset', { token, new_password }),

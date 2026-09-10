@@ -15,6 +15,7 @@ import Departments from './pages/Departments'
 import LicensedSoftware from './pages/LicensedSoftware'
 import SupportAgreement from './pages/SupportAgreement'
 import SLA from './pages/SLA'
+import TicketRouting from './pages/TicketRouting'
 import Reports from './pages/Reports'
 import Import from './pages/Import'
 import SoftwareReport from './pages/SoftwareReport'
@@ -120,6 +121,7 @@ export default function App() {
                       <Route path="/admin/reports"       element={<AdvancedReports />} />
                       <Route path="/admin/ticket-log"    element={<AdminTicketLog />} />
                       <Route path="/admin/channels"      element={<ChannelsConfig />} />
+                      <Route path="/admin/ticket-routing" element={<TicketRouting />} />
                       <Route path="/admin/monitor"       element={<ServerMonitor />} />
                       <Route path="/telegram-tickets"    element={<TelegramTickets />} />
                       <Route path="/whatsapp-tickets"    element={<WhatsAppTickets />} />

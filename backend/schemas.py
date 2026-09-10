@@ -197,6 +197,25 @@ class SupportAgreementOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TicketRoutingRuleBase(BaseModel):
+    keywords: str
+    engineer_name: str
+    engineer_email: Optional[str] = None
+    active: str = "true"
+    priority_order: int = 0
+
+
+class TicketRoutingRuleCreate(TicketRoutingRuleBase):
+    pass
+
+
+class TicketRoutingRuleOut(TicketRoutingRuleBase):
+    id: int
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
 class ReportStats(BaseModel):
     total_assets: int
     active_assets: int

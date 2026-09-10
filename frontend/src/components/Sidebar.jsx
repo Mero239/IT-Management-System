@@ -41,6 +41,7 @@ const ADMIN_GROUP = {
     { to: '/admin/reports',     key: 'nav.adminReports',     icon: '📈' },
     { to: '/admin/engineers',   key: 'nav.adminEngineers',   icon: '🛡️' },
     { to: '/admin/channels',    key: 'nav.adminChannels',    icon: '📱' },
+    { to: '/admin/ticket-routing', key: 'nav.adminTicketRouting', icon: '🧭' },
     { to: '/admin/monitor',     key: 'nav.adminMonitor',     icon: '📡' },
   ],
 }
