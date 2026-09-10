@@ -28,8 +28,6 @@ DEFAULT_CONFIG = {
         {"name": "IT Support AI",      "ip": "192.1.1.180", "os": "none"},
         {"name": "Domain Controller",  "ip": "192.1.1.23",  "os": "none"},
         {"name": "DHCP Server",        "ip": "192.1.1.229", "os": "windows", "ssh_user": "", "ssh_pass": ""},
-        {"name": "OPR App",            "ip": "10.10.2.14",  "os": "linux",   "ssh_user": "", "ssh_pass": ""},
-        {"name": "OPR DB",             "ip": "10.10.1.13",  "os": "linux",   "ssh_user": "", "ssh_pass": ""},
         {"name": "File Server",        "ip": "192.1.1.244", "os": "none"},
         {"name": "TriForma2025",       "ip": "192.1.16.14", "os": "none"},
         {"name": "mobica-library-fac", "ip": "192.1.5.130", "os": "none"},
