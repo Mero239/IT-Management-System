@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.db
+pre_restore_*.db
+email_agent_config.json
+monitor_config.json
+telegram_config.json
+agreements/
+.env

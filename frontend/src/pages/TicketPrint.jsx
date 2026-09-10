@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ticketsApi } from '../api/client'
+import { BRAND_TAGLINE } from '../constants'
 
 // ── config ────────────────────────────────────────────────────────────────────
 const STATUS_CFG = {
@@ -134,7 +135,7 @@ export default function TicketPrint() {
                 <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">💻</div>
                 <div>
                   <h1 className="text-white font-bold text-xl leading-tight">نظام إدارة تكنولوجيا المعلومات</h1>
-                  <p className="text-yellow-200 text-sm">Mobica IT Support System</p>
+                  <p className="text-yellow-200 text-sm">{BRAND_TAGLINE}</p>
                 </div>
               </div>
               <h2 className="text-white/80 text-sm font-medium">تقرير تذكرة الدعم الفني</h2>
@@ -329,7 +330,7 @@ export default function TicketPrint() {
         {/* === FOOTER === */}
         <div className="px-10 py-4 bg-slate-50 border-t border-slate-200 print-section">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>نظام إدارة IT — Mobica</span>
+            <span>{BRAND_TAGLINE}</span>
             <span>تذكرة #{ticket.id} · {fmtDateShort(new Date().toISOString())}</span>
             <span>تقرير آلي من النظام</span>
           </div>

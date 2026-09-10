@@ -16,6 +16,7 @@ backend/pre_restore_*.db
 backend/telegram_config.json
 backend/monitor_config.json
 backend/email_agent_config.json
+backend/.jwt_secret
 frontend/*.db
 
 # Uploaded runtime content (not source)

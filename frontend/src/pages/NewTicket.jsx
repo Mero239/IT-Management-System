@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { departmentsApi, API_BASE } from '../api/client'
+import { BRAND_TAGLINE } from '../constants'
 
 async function getWaConfig() {
   try {
@@ -250,7 +251,7 @@ export default function NewTicket() {
           <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg shrink-0">🎫</div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-base leading-tight">طلب دعم فني</p>
-            <p className="text-yellow-200 text-xs">Mobica · IT Support</p>
+            <p className="text-yellow-200 text-xs">{BRAND_TAGLINE}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {waConfig && (

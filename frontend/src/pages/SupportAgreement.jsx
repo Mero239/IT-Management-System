@@ -5,6 +5,7 @@ import Modal from '../components/Modal'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
 import { useAuth } from '../context/AuthContext'
+import { BRAND_TAGLINE } from '../constants'
 
 function formatSize(bytes) {
   if (!bytes) return '—'
@@ -77,7 +78,7 @@ export default function SupportAgreement() {
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl shrink-0">💻</div>
             <div>
               <h1 className="text-white font-bold text-sm leading-tight">{t('app.name')}</h1>
-              <p className="text-yellow-200 text-xs">Mobica IT Support</p>
+              <p className="text-yellow-200 text-xs">{BRAND_TAGLINE}</p>
             </div>
           </div>
           {engineer ? (

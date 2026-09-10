@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authApi } from '../api/client'
+import { BRAND_TAGLINE } from '../constants'
 
 function StrengthBar({ password }) {
   const checks = [
@@ -93,7 +94,7 @@ export default function ForgotPassword() {
             💻
           </div>
           <h1 className="text-white font-bold text-xl">نظام إدارة IT</h1>
-          <p className="text-yellow-200 text-sm mt-1">Mobica IT Support</p>
+          <p className="text-yellow-200 text-sm mt-1">{BRAND_TAGLINE}</p>
         </div>
 
         <div className="bg-white rounded-3xl shadow-2xl p-8">

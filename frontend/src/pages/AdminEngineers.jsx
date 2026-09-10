@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { engineersApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import Modal from '../components/Modal'
+import { DEFAULT_PASSWORD } from '../constants'
 
 const ROLES = ['IT Engineer', 'Support Technician', 'Network Engineer', 'Systems Admin', 'IT Manager']
 
@@ -38,7 +39,7 @@ function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onResetPwd, onDelet
   }, [eng.id])
 
   const handleReset = async () => {
-    if (!confirm(`إعادة تعيين كلمة مرور ${eng.name} إلى الافتراضية (Mobica@2024)؟`)) return
+    if (!confirm(`إعادة تعيين كلمة مرور ${eng.name} إلى الافتراضية (${DEFAULT_PASSWORD})؟`)) return
     setResetting(true)
     try { await onResetPwd(eng.id) }
     finally { setResetting(false) }
@@ -216,7 +217,7 @@ export default function AdminEngineers() {
 
   const handleResetPwd = async (id) => {
     await engineersApi.resetPassword(id)
-    showToast('تمت إعادة تعيين كلمة المرور إلى Mobica@2024')
+    showToast(`تمت إعادة تعيين كلمة المرور إلى ${DEFAULT_PASSWORD}`)
   }
 
   const handleDelete = async (id, name) => {
@@ -377,7 +378,7 @@ export default function AdminEngineers() {
 
             {!editing && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-                🔑 كلمة المرور الافتراضية عند الإنشاء: <strong>Mobica@2024</strong>
+                🔑 كلمة المرور الافتراضية عند الإنشاء: <strong>{DEFAULT_PASSWORD}</strong>
               </div>
             )}
           </div>

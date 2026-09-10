@@ -20,8 +20,9 @@ from services.email_notifier import send_password_reset_email, send_otp_email, s
 DB_PATH = data_path('it_management.db')
 
 # Non-admin (engineer / viewer) resets go through OTP instead of an email link;
-# the admin below gets a copy notice for every such request.
-OTP_NOTIFY_EMAIL = "amr.eisa@mobica.net"
+# whoever is set here gets a copy notice for every such request. Configure via
+# the OTP_NOTIFY_EMAIL env var — if unset, the admin-copy notice is skipped.
+OTP_NOTIFY_EMAIL = os.environ.get("OTP_NOTIFY_EMAIL", "")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -190,7 +191,8 @@ def forgot_password(data: ForgotPasswordRequest, request: Request, db: Session =
 
     def _send_otp():
         send_otp_email(eng.name, eng.email, code)
-        send_otp_admin_notice(eng.name, eng.email, OTP_NOTIFY_EMAIL)
+        if OTP_NOTIFY_EMAIL:
+            send_otp_admin_notice(eng.name, eng.email, OTP_NOTIFY_EMAIL)
     threading.Thread(target=_send_otp, daemon=True).start()
 
     return {"message": "إذا كان البريد مسجلاً، ستصلك رسالة تحتوي على كود تحقق (OTP)", "method": "otp"}

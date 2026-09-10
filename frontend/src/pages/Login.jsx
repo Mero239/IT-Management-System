@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { DEFAULT_PASSWORD, BRAND_TAGLINE } from '../constants'
 
 export default function Login() {
   const { login } = useAuth()
@@ -22,7 +23,7 @@ export default function Login() {
     try {
       const eng = await login(email.trim(), password)
       // If this was their first login (default password), prompt change
-      if (password === 'Mobica@2024') setFirstLogin(true)
+      if (password === DEFAULT_PASSWORD) setFirstLogin(true)
       else navigate(from, { replace: true })
     } catch (err) {
       setError(err.response?.data?.detail || 'خطأ في تسجيل الدخول')
@@ -44,7 +45,7 @@ export default function Login() {
             💻
           </div>
           <h1 className="text-2xl font-bold text-white">نظام إدارة تكنولوجيا المعلومات</h1>
-          <p className="text-yellow-200 text-sm mt-1">Mobica IT Management</p>
+          <p className="text-yellow-200 text-sm mt-1">{BRAND_TAGLINE}</p>
         </div>
 
         {/* Card */}
@@ -120,7 +121,7 @@ export default function Login() {
               <div className="mt-5 p-3 bg-slate-50 rounded-xl">
                 <p className="text-xs text-slate-500 text-center">
                   كلمة المرور الافتراضية لأول دخول:{' '}
-                  <code className="bg-white px-2 py-0.5 rounded border text-yellow-700 font-mono">Mobica@2024</code>
+                  <code className="bg-white px-2 py-0.5 rounded border text-yellow-700 font-mono">{DEFAULT_PASSWORD}</code>
                 </p>
               </div>
             </>
@@ -153,11 +154,11 @@ function FirstLoginPrompt({ onDone }) {
     e.preventDefault()
     if (newPass.length < 6)    { setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return }
     if (newPass !== confirm)   { setError('كلمتا المرور غير متطابقتين'); return }
-    if (newPass === 'Mobica@2024') { setError('اختر كلمة مرور مختلفة عن الافتراضية'); return }
+    if (newPass === DEFAULT_PASSWORD) { setError('اختر كلمة مرور مختلفة عن الافتراضية'); return }
     setLoading(true); setError('')
     try {
       const api = (await import('../api/client')).default
-      await api.post('/auth/change-password', { current_password: 'Mobica@2024', new_password: newPass })
+      await api.post('/auth/change-password', { current_password: DEFAULT_PASSWORD, new_password: newPass })
       setDone(true)
       setTimeout(onDone, 2000)
     } catch (err) {
