@@ -3,6 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { departmentsApi, engineersApi, ticketsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
+const CATEGORY_MAP = {
+  network:            { label: 'مشكلة شبكة',    icon: '🌐' },
+  laptop_maintenance: { label: 'صيانة لاب توب', icon: '💻' },
+  internet:           { label: 'انترنت بيقطع',  icon: '📶' },
+  printing:           { label: 'مشكلة طباعة',   icon: '🖨️' },
+  other:              { label: 'أخرى',          icon: '❓' },
+}
+
 // ── config ────────────────────────────────────────────────────────────────────
 const STATUS_MAP = {
   open:        { label: 'مفتوحة',      color: 'bg-red-100 text-red-600',           dot: 'bg-red-500' },
@@ -487,8 +495,29 @@ export default function TicketDetail() {
             <InfoRow label="مقدم الطلب"  value={ticket.requester_name  || '—'} icon="👤" />
             <InfoRow label="البريد"       value={ticket.requester_email || '—'} icon="📧" />
             <InfoRow label="القسم"        value={ticket.department?.name || '—'} icon="🏢" />
+            <InfoRow label="المؤسسة"      value={ticket.organization?.name || '—'} icon="🏛️" />
+            <InfoRow label="الفرع"        value={ticket.branch?.name || '—'} icon="📍" />
+            <InfoRow label="نوع المشكلة"  value={ticket.category ? `${CATEGORY_MAP[ticket.category]?.icon || ''} ${CATEGORY_MAP[ticket.category]?.label || ticket.category}` : '—'} icon="🏷️" />
             <InfoRow label="المسؤول"      value={ticket.assigned_to || 'غير محدد'} icon="🔧" highlight={!!ticket.assigned_to} />
           </div>
+
+          {/* Attachment */}
+          {ticket.attachment_original_name && (
+            <div className="card space-y-2">
+              <h3 className="font-bold text-slate-700 text-sm border-b border-slate-100 pb-2">📎 مرفق</h3>
+              <a
+                href={ticketsApi.attachmentUrl(ticket.id)}
+                target="_blank" rel="noreferrer"
+                className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                <img src={ticketsApi.attachmentUrl(ticket.id)} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-700 truncate">{ticket.attachment_original_name}</p>
+                  <p className="text-xs text-slate-400">{((ticket.attachment_size || 0) / 1024).toFixed(0)} KB — اضغط للتكبير</p>
+                </div>
+              </a>
+            </div>
+          )}
 
           {/* Resolution KB card (when resolved/closed) */}
           {isResolved && ticket.resolution && (

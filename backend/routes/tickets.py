@@ -1,14 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, case, func
 from typing import List, Optional
 import threading
+import os
+import uuid
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from database import get_db
+from paths import data_path
 from routes.auth import get_current_engineer
 import models, schemas
 from services.ticket_routing import find_routed_engineer
+
+ATTACHMENTS_DIR = data_path("ticket_attachments")
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+ALLOWED_ATTACHMENT_EXT = (".jpg", ".jpeg", ".png", ".gif", ".webp")
+MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024  # 2 MB
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
@@ -284,6 +293,8 @@ def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=schemas.SupportTicketOut)
 def create_ticket(ticket: schemas.SupportTicketCreate, db: Session = Depends(get_db)):
+    if ticket.category and ticket.category not in models.TICKET_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"category must be one of {models.TICKET_CATEGORIES}")
     obj = models.SupportTicket(**ticket.model_dump())
     if not obj.assigned_to:
         routed = find_routed_engineer(obj.title, obj.description, db)
@@ -298,6 +309,52 @@ def create_ticket(ticket: schemas.SupportTicketCreate, db: Session = Depends(get
     if obj.assigned_to and not ticket.assigned_to:
         _add_activity(db, obj.id, f"تم التوجيه التلقائي إلى {obj.assigned_to} بناءً على محتوى التذكرة")
     return obj
+
+
+@router.post("/{ticket_id}/attachment", response_model=schemas.SupportTicketOut)
+async def upload_ticket_attachment(ticket_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    # Intentionally public (no auth) — called right after public ticket
+    # creation in the new-ticket form. Only allowed once per ticket (until
+    # that attachment is replaced) to limit abuse of a guessable ticket id.
+    obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_ATTACHMENT_EXT:
+        raise HTTPException(status_code=400, detail="الملفات المسموح بها: صور فقط (jpg, png, gif, webp)")
+
+    content = await file.read()
+    if len(content) > MAX_ATTACHMENT_SIZE:
+        raise HTTPException(status_code=400, detail="الحجم الأقصى المسموح به 2 ميجابايت")
+
+    # Remove a previous attachment on this ticket, if any, before saving the new one.
+    if obj.attachment_filename:
+        old_path = os.path.join(ATTACHMENTS_DIR, obj.attachment_filename)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    stored_name = f"{uuid.uuid4().hex}{ext}"
+    with open(os.path.join(ATTACHMENTS_DIR, stored_name), "wb") as f:
+        f.write(content)
+
+    obj.attachment_filename = stored_name
+    obj.attachment_original_name = file.filename
+    obj.attachment_size = len(content)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.get("/{ticket_id}/attachment")
+def download_ticket_attachment(ticket_id: int, db: Session = Depends(get_db)):
+    obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
+    if not obj or not obj.attachment_filename:
+        raise HTTPException(status_code=404, detail="لا يوجد مرفق لهذه التذكرة")
+    path = os.path.join(ATTACHMENTS_DIR, obj.attachment_filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="الملف غير موجود على السيرفر")
+    return FileResponse(path, filename=obj.attachment_original_name)
 
 
 @router.put("/{ticket_id}", response_model=schemas.SupportTicketOut)

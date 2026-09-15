@@ -12,9 +12,11 @@ import Tickets from './pages/Tickets'
 import TicketDetail from './pages/TicketDetail'
 import EngineerDashboard from './pages/EngineerDashboard'
 import Departments from './pages/Departments'
+import OrganizationsBranches from './pages/OrganizationsBranches'
 import LicensedSoftware from './pages/LicensedSoftware'
 import SupportAgreement from './pages/SupportAgreement'
 import SLA from './pages/SLA'
+import TicketReports from './pages/TicketReports'
 import TicketRouting from './pages/TicketRouting'
 import Reports from './pages/Reports'
 import Import from './pages/Import'
@@ -63,6 +65,7 @@ function RequireAuth({ children }) {
 const TICKETS_ONLY_ALLOWED_PREFIXES = [
   '/tickets', '/sla', '/inbox', '/telegram-tickets', '/whatsapp-tickets',
   '/email-tickets', '/engineer-dashboard', '/knowledge-base', '/settings',
+  '/ticket-reports',
 ]
 
 function TicketsOnlyGuard({ children }) {
@@ -130,8 +133,10 @@ export default function App() {
                       <Route path="/engineer-dashboard"  element={<EngineerDashboard />} />
                       <Route path="/knowledge-base"      element={<KnowledgeBase />} />
                       <Route path="/departments"         element={<Departments />} />
+                      <Route path="/organizations"       element={<OrganizationsBranches />} />
                       <Route path="/licensed-software"   element={<LicensedSoftware />} />
                       <Route path="/sla"                 element={<SLA />} />
+                      <Route path="/ticket-reports"      element={<TicketReports />} />
                       <Route path="/reports"             element={<Reports />} />
                       <Route path="/import"              element={<Import />} />
                       <Route path="/swreport"            element={<SoftwareReport />} />

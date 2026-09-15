@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ticketsApi, departmentsApi, engineersApi } from '../api/client'
+import { ticketsApi, departmentsApi, engineersApi, organizationsApi, branchesApi } from '../api/client'
 import Modal from '../components/Modal'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
@@ -23,14 +23,19 @@ const PRIORITY_COLORS = {
 
 const emptyForm = {
   title: '', description: '', requester_name: '', requester_email: '',
-  department_id: '', priority: 'medium', status: 'open', assigned_to: '', resolution: '',
+  department_id: '', organization_id: '', branch_id: '', category: '',
+  priority: 'medium', status: 'open', assigned_to: '', resolution: '',
 }
+
+const CATEGORIES = ['network', 'laptop_maintenance', 'internet', 'printing', 'other']
 
 export default function Tickets() {
   const { t } = useLanguage()
   const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [departments, setDepartments] = useState([])
+  const [organizations, setOrganizations] = useState([])
+  const [branches, setBranches] = useState([])
   const [engineers, setEngineers] = useState([])
   const [filter, setFilter] = useState({ status: '', priority: '' })
   const [loading, setLoading] = useState(true)
@@ -56,12 +61,20 @@ export default function Tickets() {
 
   useEffect(() => { load() }, [filter])
   useEffect(() => { departmentsApi.list().then((r) => setDepartments(r.data)) }, [])
+  useEffect(() => { organizationsApi.list().then((r) => setOrganizations(r.data)) }, [])
+  useEffect(() => { branchesApi.list().then((r) => setBranches(r.data)) }, [])
   useEffect(() => { engineersApi.list().then((r) => setEngineers(r.data)) }, [])
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setError(''); setModal(true) }
   const openEdit = (item) => {
     setEditing(item)
-    setForm({ ...item, department_id: item.department_id || '' })
+    setForm({
+      ...item,
+      department_id: item.department_id || '',
+      organization_id: item.organization_id || '',
+      branch_id: item.branch_id || '',
+      category: item.category || '',
+    })
     setError(''); setModal(true)
   }
   const openDetail = (item) => { setSelected(item); setDetailModal(true) }
@@ -70,7 +83,13 @@ export default function Tickets() {
     if (!form.title.trim()) { setError(t('tickets.errorTitle')); return }
     setSaving(true); setError('')
     try {
-      const data = { ...form, department_id: form.department_id || null }
+      const data = {
+        ...form,
+        department_id: form.department_id || null,
+        organization_id: form.organization_id || null,
+        branch_id: form.branch_id || null,
+        category: form.category || null,
+      }
       if (editing) await ticketsApi.update(editing.id, data)
       else await ticketsApi.create(data)
       setModal(false); load()
@@ -123,16 +142,16 @@ export default function Tickets() {
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
-              {['col.id','col.title','col.requester','col.priority','col.status','col.assignedTo','col.actions'].map((k) => (
+              {['col.id','col.title','col.requester','col.priority','col.status','col.createdAt','col.dueDate','col.assignedTo','col.actions'].map((k) => (
                 <th key={k} className="table-th">{t(`tickets.${k}`)}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {loading ? (
-              <tr><td colSpan={7} className="table-td text-center py-12 text-slate-400">{t('common.loading')}</td></tr>
+              <tr><td colSpan={9} className="table-td text-center py-12 text-slate-400">{t('common.loading')}</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={7} className="table-td text-center py-12 text-slate-400">{t('tickets.noTickets')}</td></tr>
+              <tr><td colSpan={9} className="table-td text-center py-12 text-slate-400">{t('tickets.noTickets')}</td></tr>
             ) : items.map((item) => (
               <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                 <td className="table-td text-slate-400 text-xs">#{item.id}</td>
@@ -148,6 +167,22 @@ export default function Tickets() {
                 </td>
                 <td className="table-td">
                   <span className={`badge ${STATUS_COLORS[item.status]}`}>{t(`status.${item.status}`)}</span>
+                </td>
+                <td className="table-td text-slate-500 text-xs whitespace-nowrap">
+                  {item.created_at ? new Date(item.created_at).toLocaleDateString() : '—'}
+                </td>
+                <td className="table-td text-xs whitespace-nowrap">
+                  {item.sla_due_at ? (
+                    <span className={
+                      ['resolved', 'closed'].includes(item.status)
+                        ? 'text-slate-400'
+                        : item.sla_status === 'breached' ? 'text-red-500 font-semibold'
+                        : item.sla_status === 'at_risk' ? 'text-amber-600 font-medium'
+                        : 'text-slate-500'
+                    }>
+                      {new Date(item.sla_due_at).toLocaleDateString()}
+                    </span>
+                  ) : '—'}
                 </td>
                 <td className="table-td text-slate-500">{item.assigned_to || '—'}</td>
                 <td className="table-td">
@@ -279,6 +314,27 @@ export default function Tickets() {
             <select className="form-select" value={form.department_id} onChange={(e) => setForm((f) => ({ ...f, department_id: e.target.value }))}>
               <option value="">{t('common.noDepartment')}</option>
               {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="form-label">{t('tickets.form.organization')}</label>
+            <select className="form-select" value={form.organization_id} onChange={(e) => setForm((f) => ({ ...f, organization_id: e.target.value }))}>
+              <option value="">{t('tickets.form.none')}</option>
+              {organizations.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="form-label">{t('tickets.form.branch')}</label>
+            <select className="form-select" value={form.branch_id} onChange={(e) => setForm((f) => ({ ...f, branch_id: e.target.value }))}>
+              <option value="">{t('tickets.form.none')}</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="form-label">{t('tickets.form.category')}</label>
+            <select className="form-select" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
+              <option value="">{t('tickets.form.none')}</option>
+              {CATEGORIES.map((c) => <option key={c} value={c}>{t(`category.${c}`)}</option>)}
             </select>
           </div>
           <div>

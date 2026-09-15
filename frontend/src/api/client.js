@@ -13,6 +13,20 @@ export const departmentsApi = {
   delete: (id) => api.delete(`/departments/${id}`),
 }
 
+export const organizationsApi = {
+  list: () => api.get('/organizations/'),
+  create: (name) => api.post('/organizations/', { name }),
+  update: (id, name) => api.put(`/organizations/${id}`, { name }),
+  delete: (id) => api.delete(`/organizations/${id}`),
+}
+
+export const branchesApi = {
+  list: (organization_id) => api.get('/branches/', { params: organization_id ? { organization_id } : {} }),
+  create: (name, organization_id) => api.post('/branches/', { name, organization_id: organization_id || null }),
+  update: (id, name, organization_id) => api.put(`/branches/${id}`, { name, organization_id: organization_id || null }),
+  delete: (id) => api.delete(`/branches/${id}`),
+}
+
 export const assetsApi = {
   list: (params) => api.get('/assets/', { params }),
   get: (id) => api.get(`/assets/${id}`),
@@ -46,6 +60,8 @@ export const ticketsApi = {
   addComment: (id, data) => api.post(`/tickets/${id}/comments`, data),
   deleteComment: (ticketId, commentId) => api.delete(`/tickets/${ticketId}/comments/${commentId}`),
   delete: (id) => api.delete(`/tickets/${id}`),
+  uploadAttachment: (id, formData) => api.post(`/tickets/${id}/attachment`, formData),
+  attachmentUrl: (id) => `${API_BASE}/tickets/${id}/attachment`,
 }
 
 export const reportsApi = {
@@ -91,6 +107,13 @@ export const ticketRoutingApi = {
   create: (data) => api.post('/ticket-routing/', data),
   update: (id, data) => api.put(`/ticket-routing/${id}`, data),
   delete: (id) => api.delete(`/ticket-routing/${id}`),
+}
+
+export const ticketReportsApi = {
+  data: (params) => api.get('/ticket-reports/data', { params }),
+  listPresets: () => api.get('/ticket-reports/presets'),
+  savePreset: (name, filters) => api.post('/ticket-reports/presets', { name, filters }),
+  deletePreset: (id) => api.delete(`/ticket-reports/presets/${id}`),
 }
 
 export const authApi = {

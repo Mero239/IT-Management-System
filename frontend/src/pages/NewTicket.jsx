@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { departmentsApi, API_BASE } from '../api/client'
+import { departmentsApi, organizationsApi, branchesApi, ticketsApi, API_BASE } from '../api/client'
 import { BRAND_TAGLINE } from '../constants'
 
 async function getWaConfig() {
@@ -48,9 +48,73 @@ const STEPS = [
   { id: 3, title: 'الأولوية',   icon: '⚡' },
 ]
 
+const CATEGORIES = [
+  { value: 'network',            label: 'مشكلة شبكة',      icon: '🌐' },
+  { value: 'laptop_maintenance', label: 'صيانة لاب توب',   icon: '💻' },
+  { value: 'internet',           label: 'انترنت بيقطع',    icon: '📶' },
+  { value: 'printing',           label: 'مشكلة طباعة',     icon: '🖨️' },
+  { value: 'other',              label: 'أخرى',            icon: '❓' },
+]
+
+const MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024 // 2MB
+
 const empty = {
   requester_name: '', requester_email: '', department_id: '',
-  title: '', description: '', priority: 'medium',
+  organization_id: '', branch_id: '',
+  title: '', description: '', category: '', priority: 'medium',
+}
+
+/* ── Select with inline "add new" ─────────────── */
+function SelectWithAdd({ label, options, value, onChange, onAdd, addPlaceholder, emptyLabel }) {
+  const [adding, setAdding] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const handleAdd = async () => {
+    if (!newName.trim()) return
+    setSaving(true)
+    try {
+      const created = await onAdd(newName.trim())
+      onChange(String(created.id))
+      setAdding(false); setNewName('')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <Input label={label}>
+      {adding ? (
+        <div className="flex gap-2">
+          <input
+            autoFocus
+            className="flex-1 border-2 border-yellow-300 rounded-2xl px-4 py-3.5 text-base focus:outline-none focus:border-yellow-500 bg-white"
+            placeholder={addPlaceholder}
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()}
+          />
+          <button type="button" onClick={handleAdd} disabled={saving}
+            className="shrink-0 px-4 rounded-2xl bg-yellow-600 text-white font-bold disabled:opacity-50">✓</button>
+          <button type="button" onClick={() => { setAdding(false); setNewName('') }}
+            className="shrink-0 px-4 rounded-2xl bg-slate-100 text-slate-500 font-bold">✕</button>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <select
+            className="flex-1 border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-base focus:outline-none focus:border-yellow-500 bg-white"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+          >
+            <option value="">{emptyLabel}</option>
+            {options.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+          <button type="button" onClick={() => setAdding(true)}
+            className="shrink-0 px-4 rounded-2xl border-2 border-slate-200 text-slate-600 font-semibold text-sm active:bg-slate-50">
+            + جديد
+          </button>
+        </div>
+      )}
+    </Input>
+  )
 }
 
 /* ── Helpers ──────────────────────────────────── */
@@ -71,6 +135,8 @@ function Input({ label, required, error, children, hint }) {
 export default function NewTicket() {
   const [form, setForm]         = useState({ ...empty })
   const [departments, setDepts] = useState([])
+  const [organizations, setOrgs] = useState([])
+  const [branches, setBranches] = useState([])
   const [step, setStep]         = useState(1)          // 1 | 2 | 3
   const [screen, setScreen]     = useState('wizard')   // wizard | success
   const [saving, setSaving]     = useState(false)
@@ -80,13 +146,30 @@ export default function NewTicket() {
   const [waConfig, setWaConfig] = useState(null)
   const [empCode, setEmpCode]   = useState('')
   const [empLookup, setEmpLookup] = useState(null)   // null | 'loading' | 'found' | 'not_found'
+  const [attachment, setAttachment] = useState(null)
+  const [attachmentPreview, setAttachmentPreview] = useState('')
   const topRef                  = useRef()
   const lookupTimer             = useRef()
 
   useEffect(() => {
     departmentsApi.list().then(r => setDepts(r.data)).catch(() => {})
+    organizationsApi.list().then(r => setOrgs(r.data)).catch(() => {})
+    branchesApi.list().then(r => setBranches(r.data)).catch(() => {})
     getWaConfig().then(cfg => { if (cfg?.whatsapp_phone) setWaConfig(cfg) })
   }, [])
+
+  const handleAttachment = (file) => {
+    if (!file) { setAttachment(null); setAttachmentPreview(''); return }
+    if (!file.type.startsWith('image/')) {
+      setErrors(e => ({ ...e, attachment: 'الملف المسموح به صورة فقط' })); return
+    }
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setErrors(e => ({ ...e, attachment: 'الحجم الأقصى المسموح به 2 ميجابايت' })); return
+    }
+    setErrors(e => ({ ...e, attachment: '' }))
+    setAttachment(file)
+    setAttachmentPreview(URL.createObjectURL(file))
+  }
 
   const lookupEmployee = (val) => {
     setEmpCode(val)
@@ -159,11 +242,20 @@ export default function NewTicket() {
         body: JSON.stringify({
           ...form,
           department_id: form.department_id || null,
+          organization_id: form.organization_id || null,
+          branch_id: form.branch_id || null,
+          category: form.category || null,
           status: 'open',
         }),
       })
       if (!res.ok) throw new Error()
-      setTicket(await res.json())
+      const created = await res.json()
+      if (attachment) {
+        const fd = new FormData()
+        fd.append('file', attachment)
+        try { await ticketsApi.uploadAttachment(created.id, fd) } catch {}
+      }
+      setTicket(created)
       setScreen('success')
       scrollTop()
     } catch {
@@ -175,6 +267,7 @@ export default function NewTicket() {
 
   const reset = () => {
     setForm({ ...empty }); setStep(1); setErrors({})
+    setAttachment(null); setAttachmentPreview('')
     setScreen('wizard'); setTicket(null)
   }
 
@@ -374,6 +467,34 @@ export default function NewTicket() {
                 </select>
               </Input>
             )}
+
+            <SelectWithAdd
+              label="المؤسسة"
+              options={organizations}
+              value={form.organization_id}
+              onChange={v => set('organization_id', v)}
+              onAdd={async (name) => {
+                const r = await organizationsApi.create(name)
+                setOrgs(o => o.some(x => x.id === r.data.id) ? o : [...o, r.data])
+                return r.data
+              }}
+              addPlaceholder="اسم المؤسسة الجديدة"
+              emptyLabel="— اختر المؤسسة (اختياري) —"
+            />
+
+            <SelectWithAdd
+              label="الفرع"
+              options={branches}
+              value={form.branch_id}
+              onChange={v => set('branch_id', v)}
+              onAdd={async (name) => {
+                const r = await branchesApi.create(name, form.organization_id || null)
+                setBranches(b => b.some(x => x.id === r.data.id) ? b : [...b, r.data])
+                return r.data
+              }}
+              addPlaceholder="اسم الفرع الجديد"
+              emptyLabel="— اختر الفرع (اختياري) —"
+            />
           </>
         )}
 
@@ -432,6 +553,51 @@ export default function NewTicket() {
                 ))}
               </div>
             </div>
+
+            {/* Category */}
+            <Input label="نوع المشكلة">
+              <div className="grid grid-cols-2 gap-2.5">
+                {CATEGORIES.map(c => (
+                  <button key={c.value} type="button"
+                    onClick={() => set('category', form.category === c.value ? '' : c.value)}
+                    className={`flex items-center gap-2.5 p-3 rounded-2xl border-2 text-start transition-all ${
+                      form.category === c.value
+                        ? 'border-yellow-400 bg-yellow-50 text-yellow-800'
+                        : 'border-slate-200 bg-white text-slate-600'
+                    }`}>
+                    <span className="text-2xl shrink-0">{c.icon}</span>
+                    <span className="text-sm font-semibold">{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </Input>
+
+            {/* Attachment */}
+            <Input label="إرفاق صورة (اختياري)" hint="بحد أقصى 2 ميجابايت" error={errors.attachment}>
+              <input
+                id="attach-file"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => handleAttachment(e.target.files?.[0])}
+              />
+              {attachment ? (
+                <div className="flex items-center gap-3 p-3 border-2 border-slate-200 rounded-2xl bg-white">
+                  <img src={attachmentPreview} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-700 truncate">{attachment.name}</p>
+                    <p className="text-xs text-slate-400">{(attachment.size / 1024).toFixed(0)} KB</p>
+                  </div>
+                  <button type="button" onClick={() => handleAttachment(null)}
+                    className="shrink-0 w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">✕</button>
+                </div>
+              ) : (
+                <label htmlFor="attach-file"
+                  className="flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-slate-300 text-slate-500 text-sm font-medium cursor-pointer active:bg-slate-50">
+                  📎 اضغط لإرفاق صورة للمشكلة
+                </label>
+              )}
+            </Input>
           </>
         )}
 
@@ -478,7 +644,11 @@ export default function NewTicket() {
                 { icon: '👤', label: form.requester_name },
                 { icon: '📧', label: form.requester_email },
                 { icon: '💬', label: form.title },
-              ].map((r, i) => (
+                form.category && { icon: CATEGORIES.find(c => c.value === form.category)?.icon, label: CATEGORIES.find(c => c.value === form.category)?.label },
+                form.organization_id && { icon: '🏢', label: organizations.find(o => String(o.id) === String(form.organization_id))?.name },
+                form.branch_id && { icon: '📍', label: branches.find(b => String(b.id) === String(form.branch_id))?.name },
+                attachment && { icon: '📎', label: attachment.name },
+              ].filter(Boolean).map((r, i) => (
                 <div key={i} className="flex items-start gap-2.5 text-slate-600">
                   <span className="shrink-0 mt-0.5">{r.icon}</span>
                   <span className="break-all">{r.label}</span>

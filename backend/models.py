@@ -7,6 +7,9 @@ from datetime import datetime, timedelta
 # Max resolution time per ticket priority, in hours.
 SLA_HOURS_BY_PRIORITY = {"critical": 4, "high": 24, "medium": 72, "low": 168}
 
+# Ticket problem categories, shown as a dropdown when opening a new ticket.
+TICKET_CATEGORIES = ["network", "laptop_maintenance", "internet", "printing", "other"]
+
 
 class Department(Base):
     __tablename__ = "departments"
@@ -18,6 +21,27 @@ class Department(Base):
     assets = relationship("Asset", back_populates="department")
     requests = relationship("NeedsRequest", back_populates="department")
     tickets = relationship("SupportTicket", back_populates="department")
+
+
+class Organization(Base):
+    """Master data: the company/entity a ticket requester belongs to."""
+    __tablename__ = "organizations"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), unique=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    branches = relationship("Branch", back_populates="organization")
+
+
+class Branch(Base):
+    """Master data: a physical branch/site, optionally under an organization."""
+    __tablename__ = "branches"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    organization = relationship("Organization", back_populates="branches")
 
 
 class Asset(Base):
@@ -73,16 +97,24 @@ class SupportTicket(Base):
     requester_name = Column(String(200))
     requester_email = Column(String(200))
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
+    category = Column(String(50), nullable=True)          # see TICKET_CATEGORIES
     priority = Column(String(50), default="medium")      # low, medium, high, critical
     status = Column(String(50), default="open")          # open, in_progress, resolved, closed
     assigned_to = Column(String(200))
     resolution = Column(Text)
     source = Column(String(50), default="manual")        # manual, email
     source_email_id = Column(String(500), nullable=True)
+    attachment_filename = Column(String(300), nullable=True)       # name on disk
+    attachment_original_name = Column(String(300), nullable=True)
+    attachment_size = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     department = relationship("Department", back_populates="tickets")
+    organization = relationship("Organization")
+    branch = relationship("Branch")
     comments = relationship("TicketComment", back_populates="ticket", order_by="TicketComment.created_at")
 
     @property
@@ -243,6 +275,17 @@ class ProcessedEmail(Base):
     sender = Column(String(200))
     ticket_id = Column(Integer, nullable=True)
     processed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TicketReportPreset(Base):
+    """A named, saved combination of ticket-report filters, so a user can
+    re-run the same custom report later without re-picking every filter."""
+    __tablename__ = "ticket_report_presets"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    filters = Column(Text, nullable=False)   # JSON-encoded filter dict
+    created_by = Column(String(200), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class TicketRoutingRule(Base):

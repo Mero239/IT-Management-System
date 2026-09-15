@@ -21,6 +21,7 @@ frontend/*.db
 
 # Uploaded runtime content (not source)
 backend/agreements/
+backend/ticket_attachments/
 
 # Node
 node_modules/

@@ -19,6 +19,38 @@ class DepartmentOut(DepartmentBase):
     model_config = {"from_attributes": True}
 
 
+class OrganizationBase(BaseModel):
+    name: str
+
+
+class OrganizationCreate(OrganizationBase):
+    pass
+
+
+class OrganizationOut(OrganizationBase):
+    id: int
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class BranchBase(BaseModel):
+    name: str
+    organization_id: Optional[int] = None
+
+
+class BranchCreate(BranchBase):
+    pass
+
+
+class BranchOut(BranchBase):
+    id: int
+    created_at: Optional[datetime] = None
+    organization: Optional[OrganizationOut] = None
+
+    model_config = {"from_attributes": True}
+
+
 class AssetBase(BaseModel):
     name: str
     asset_type: str
@@ -84,6 +116,9 @@ class SupportTicketBase(BaseModel):
     requester_name: Optional[str] = None
     requester_email: Optional[str] = None
     department_id: Optional[int] = None
+    organization_id: Optional[int] = None
+    branch_id: Optional[int] = None
+    category: Optional[str] = None
     priority: str = "medium"
     status: str = "open"
     assigned_to: Optional[str] = None
@@ -99,9 +134,13 @@ class SupportTicketOut(SupportTicketBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     department: Optional[DepartmentOut] = None
+    organization: Optional[OrganizationOut] = None
+    branch: Optional[BranchOut] = None
     sla_hours: Optional[int] = None
     sla_due_at: Optional[datetime] = None
     sla_status: Optional[str] = None
+    attachment_original_name: Optional[str] = None
+    attachment_size: Optional[int] = None
 
     model_config = {"from_attributes": True}
 
@@ -211,6 +250,22 @@ class TicketRoutingRuleCreate(TicketRoutingRuleBase):
 
 class TicketRoutingRuleOut(TicketRoutingRuleBase):
     id: int
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class TicketReportPresetCreate(BaseModel):
+    name: str
+    filters: dict
+    created_by: Optional[str] = None
+
+
+class TicketReportPresetOut(BaseModel):
+    id: int
+    name: str
+    filters: dict
+    created_by: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
