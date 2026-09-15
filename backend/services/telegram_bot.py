@@ -119,6 +119,7 @@ class TelegramBot:
                 description=text,
                 requester_name=name,
                 source="telegram",
+                telegram_chat_id=chat_id,
                 assigned_to=find_routed_engineer(title, text, db),
             )
             # set priority safely
@@ -143,6 +144,62 @@ class TelegramBot:
             logger.error(f"Failed to create ticket from Telegram: {e}")
             db.rollback()
             return None
+        finally:
+            db.close()
+
+    # ── outbound notifications (called from routes/tickets.py) ───────────────
+    def notify_status_update(self, chat_id: int, ticket_id: int, title: str, status: str):
+        cfg = load_config()
+        if not cfg.get("token") or not chat_id:
+            return
+        from services.email_notifier import STATUS_LABELS_AR
+        status_label = STATUS_LABELS_AR.get(status, status)
+        text = f"🔔 <b>تحديث تذكرة #{ticket_id}</b>\n{title}\n\nالحالة الجديدة: <b>{status_label}</b>"
+        self._send(cfg["token"], chat_id, text)
+
+    def notify_csat_request(self, chat_id: int, ticket_id: int, title: str):
+        cfg = load_config()
+        if not cfg.get("token") or not chat_id:
+            return
+        text = (
+            f"⭐ Your ticket #{ticket_id} has been resolved\n{title}\n\n"
+            f"How was your experience with us? Tap a rating below (1 = lowest, 5 = highest):\n\n"
+            f"Need further assistance? Contact IT Support — ext. 526"
+        )
+        keyboard = {
+            "inline_keyboard": [[
+                {"text": f"{i} {'⭐' * i}", "callback_data": f"csat:{ticket_id}:{i}"} for i in range(1, 6)
+            ]]
+        }
+        self._send(cfg["token"], chat_id, text, reply_markup=keyboard)
+
+    def _submit_csat(self, ticket_id: int, rating: int) -> str:
+        from database import SessionLocal
+        import models
+        from datetime import datetime, timezone
+        db = SessionLocal()
+        try:
+            obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
+            if not obj:
+                return "❌ Ticket not found"
+            if obj.csat_rating is not None:
+                return "You've already rated this ticket, thank you 🙏"
+            obj.csat_rating = rating
+            obj.csat_submitted_at = datetime.now(timezone.utc)
+            db.commit()
+            comment = models.TicketComment(
+                ticket_id=ticket_id,
+                author_name="Telegram Bot",
+                content=f"⭐ Requester rated this ticket via Telegram: {rating}/5",
+                type="activity",
+            )
+            db.add(comment)
+            db.commit()
+            return f"✅ Thank you for your feedback! ({'⭐' * rating})"
+        except Exception as e:
+            logger.error(f"Telegram CSAT submit error: {e}")
+            db.rollback()
+            return "❌ An error occurred while saving your rating"
         finally:
             db.close()
 
@@ -171,6 +228,14 @@ class TelegramBot:
             chat_id  = cb["message"]["chat"]["id"]
             data     = cb.get("data", "")
             self._call(token, "answerCallbackQuery", callback_query_id=cb["id"])
+
+            if data.startswith("csat:"):
+                parts = data.split(":")
+                if len(parts) == 3:
+                    ticket_id, rating = int(parts[1]), int(parts[2])
+                    msg = self._submit_csat(ticket_id, rating)
+                    self._send(token, chat_id, msg)
+                return
 
             if data.startswith("priority:") and chat_id in self._pending:
                 priority = data.split(":", 1)[1]

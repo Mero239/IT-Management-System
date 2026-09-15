@@ -50,6 +50,7 @@ export default function TicketReports() {
   const [saveModal, setSaveModal] = useState(false)
   const [presetName, setPresetName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [tab, setTab] = useState('overview') // overview | ratings
 
   const loadPresets = () => ticketReportsApi.listPresets().then(r => setPresets(r.data)).catch(() => {})
 
@@ -115,6 +116,27 @@ export default function TicketReports() {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Ticket Report')
     XLSX.writeFile(wb, `ticket_report_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
+  const ratedTickets = (data?.tickets || []).filter(t => t.csat_rating).sort((a, b) =>
+    new Date(b.csat_submitted_at || 0) - new Date(a.csat_submitted_at || 0))
+
+  const exportRatingsExcel = () => {
+    if (!ratedTickets.length) return
+    const rows = ratedTickets.map((t, i) => ({
+      '#': i + 1,
+      'رقم التذكرة': t.id,
+      'عنوان المشكلة': t.title,
+      'التقييم (من 5)': t.csat_rating,
+      'اسم مقدّم الطلب': t.requester_name || '',
+      'بريد مقدّم الطلب': t.requester_email || '',
+      'من حل المشكلة': t.assigned_to || '',
+      'تاريخ التقييم': t.csat_submitted_at ? new Date(t.csat_submitted_at).toLocaleString() : '',
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'CSAT Report')
+    XLSX.writeFile(wb, `ticket_ratings_report_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
   const priorityLabel = { low: 'منخفضة', medium: 'متوسطة', high: 'عالية', critical: 'حرجة' }
@@ -219,8 +241,90 @@ export default function TicketReports() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-slate-200">
+        {[
+          { key: 'overview', label: '📊 نظرة عامة' },
+          { key: 'ratings', label: '⭐ تقييمات العملاء' },
+        ].map(tb => (
+          <button key={tb.key} onClick={() => setTab(tb.key)}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              tab === tb.key ? 'border-yellow-500 text-yellow-700' : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}>
+            {tb.label}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="card text-center py-12 text-slate-400">جاري التحميل...</div>
+      ) : data && tab === 'ratings' ? (
+        <>
+          {/* CSAT stat cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="card !p-4">
+              <p className="text-3xl font-bold text-yellow-500">{data.avg_csat_rating ?? '—'} {data.avg_csat_rating ? '⭐' : ''}</p>
+              <p className="text-xs text-slate-500 mt-1">متوسط تقييم العملاء</p>
+            </div>
+            <div className="card !p-4">
+              <p className="text-3xl font-bold text-slate-800">{data.csat_count || 0}</p>
+              <p className="text-xs text-slate-500 mt-1">عدد التقييمات المسجّلة</p>
+            </div>
+            <div className="card !p-4">
+              <p className="text-3xl font-bold text-slate-800">{data.total ? Math.round(((data.csat_count || 0) / data.total) * 100) : 0}%</p>
+              <p className="text-xs text-slate-500 mt-1">نسبة التذاكر المُقيّمة</p>
+            </div>
+          </div>
+
+          {/* Rating distribution */}
+          <BreakdownCard
+            title="توزيع التقييمات"
+            data={data.by_csat_rating}
+            total={data.csat_count}
+            labelFor={k => '⭐'.repeat(Number(k)) + ` (${k})`}
+          />
+
+          {/* Ratings table */}
+          <div className="card !p-0 overflow-hidden">
+            <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-700 text-sm">تقرير التقييمات ({ratedTickets.length})</h3>
+              <button onClick={exportRatingsExcel} disabled={!ratedTickets.length} className="btn-secondary !text-xs !py-1.5 disabled:opacity-40">📥 تصدير Excel</button>
+            </div>
+            <div className="overflow-x-auto max-h-[32rem] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
+                  <tr>
+                    {['#', 'التذكرة', 'التقييم', 'اسم مقدّم الطلب', 'من حل المشكلة', 'تاريخ التقييم'].map(h => (
+                      <th key={h} className="table-th">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {ratedTickets.length === 0 ? (
+                    <tr><td colSpan={6} className="table-td text-center py-10 text-slate-400">لا توجد تقييمات مطابقة للفلاتر</td></tr>
+                  ) : ratedTickets.map(tk => (
+                    <tr key={tk.id} className="hover:bg-slate-50/50">
+                      <td className="table-td text-slate-400 text-xs">#{tk.id}</td>
+                      <td className="table-td">
+                        <button onClick={() => navigate(`/tickets/${tk.id}`)} className="text-yellow-600 hover:underline text-start">{tk.title}</button>
+                      </td>
+                      <td className="table-td">
+                        <span className="text-amber-500">{'★'.repeat(tk.csat_rating)}</span>
+                        <span className="text-slate-200">{'★'.repeat(5 - tk.csat_rating)}</span>
+                      </td>
+                      <td className="table-td text-slate-600 text-xs">
+                        {tk.requester_name || '—'}
+                        {tk.requester_email && <p className="text-slate-400">{tk.requester_email}</p>}
+                      </td>
+                      <td className="table-td text-slate-500 text-xs">{tk.assigned_to || '—'}</td>
+                      <td className="table-td text-slate-500 text-xs">{tk.csat_submitted_at ? new Date(tk.csat_submitted_at).toLocaleString() : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       ) : data && (
         <>
           {/* Stat cards */}

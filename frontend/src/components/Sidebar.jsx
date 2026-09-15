@@ -207,7 +207,9 @@ export default function Sidebar() {
             title={collapsed ? t('sidebar.expandMenu') : t('sidebar.collapseMenu')}
             className={`flex items-center gap-3 flex-1 ${mobileView ? '' : 'cursor-pointer hover:opacity-80'} transition-opacity`}
           >
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl shrink-0">💻</div>
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0 p-1.5">
+              <img src="/mobica-logo.png" alt="Mobica" className="w-full h-full object-contain" />
+            </div>
             {!collapsed && (
               <div className="flex-1 text-start">
                 <h1 className="text-white font-bold text-sm leading-tight">{t('app.name')}</h1>

@@ -364,7 +364,9 @@ export default function NewTicket() {
       {/* ── Top bar ── */}
       <div className="bg-yellow-600 text-white px-5 pt-safe-top pb-4 sticky top-0 z-10 shadow-md">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg shrink-0">🎫</div>
+          <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shrink-0 p-1.5">
+            <img src="/mobica-logo.png" alt="Mobica" className="w-full h-full object-contain" />
+          </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-base leading-tight">طلب دعم فني</p>
             <p className="text-yellow-200 text-xs">{BRAND_TAGLINE}</p>

@@ -35,6 +35,20 @@ PRIORITY_LABELS = {
 }
 
 
+_SYSTEM_EMAIL_MARKERS = ("mailer-daemon", "postmaster", "microsoftexchange", "no-reply", "noreply")
+
+
+def _looks_like_real_recipient(email_str: Optional[str]) -> bool:
+    """Reject system/bounce sender addresses (e.g. a ticket auto-created from a
+    misrouted NDR email) so a notification never gets sent to a mailbox that can
+    only bounce it back — which would otherwise create a new ticket from that
+    bounce and repeat indefinitely."""
+    if not email_str or "@" not in email_str:
+        return False
+    e = email_str.strip().lower()
+    return not any(m in e for m in _SYSTEM_EMAIL_MARKERS)
+
+
 def _add_activity(db: Session, ticket_id: int, content: str):
     db.add(models.TicketComment(ticket_id=ticket_id, author_name="النظام", content=content, type="activity"))
     db.commit()
@@ -269,6 +283,8 @@ def list_tickets(
     priority: Optional[str] = None,
     department_id: Optional[int] = None,
     assigned_to: Optional[str] = None,
+    date_from: Optional[str] = None,   # YYYY-MM-DD
+    date_to: Optional[str] = None,     # YYYY-MM-DD
     db: Session = Depends(get_db),
 ):
     q = db.query(models.SupportTicket)
@@ -280,6 +296,19 @@ def list_tickets(
         q = q.filter(models.SupportTicket.department_id == department_id)
     if assigned_to:
         q = q.filter(models.SupportTicket.assigned_to == assigned_to)
+    if date_from:
+        try:
+            df = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            q = q.filter(models.SupportTicket.created_at >= df)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            from datetime import timedelta
+            dt = datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+            q = q.filter(models.SupportTicket.created_at < dt)
+        except ValueError:
+            pass
     return q.order_by(models.SupportTicket.id.desc()).all()
 
 
@@ -362,17 +391,17 @@ def submit_csat(ticket_id: int, data: schemas.CsatSubmit, db: Session = Depends(
     # Intentionally public (no auth) — reached from a link in the resolution
     # email sent to the requester. One rating per ticket (first submission wins).
     if data.rating < 1 or data.rating > 5:
-        raise HTTPException(status_code=400, detail="التقييم يجب أن يكون بين 1 و5")
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
     obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
     if not obj:
-        raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
+        raise HTTPException(status_code=404, detail="Ticket not found")
     if obj.csat_rating is not None:
-        raise HTTPException(status_code=400, detail="تم تسجيل تقييم لهذه التذكرة من قبل")
+        raise HTTPException(status_code=400, detail="A rating has already been submitted for this ticket")
     obj.csat_rating = data.rating
     obj.csat_submitted_at = datetime.now(timezone.utc)
     db.commit()
     _add_activity(db, ticket_id, f"⭐ قيّم مقدّم الطلب التذكرة: {data.rating}/5")
-    return {"message": "شكراً لتقييمك"}
+    return {"message": "Thank you for your rating"}
 
 
 @router.put("/{ticket_id}", response_model=schemas.SupportTicketOut)
@@ -422,16 +451,23 @@ def update_ticket_status(
         summary = steps[0][:60] + ('...' if len(steps[0]) > 60 else '') if steps else ''
         _add_activity(db, ticket_id, f"تم تسجيل خطوات الحل ({len(steps)} خطوة){': ' + summary if summary else ''}")
 
-    if status != old_status and obj.requester_email:
+    if status != old_status:
         origin = request.headers.get("origin", "http://localhost:5173")
         req_name, req_email, req_status, req_res = obj.requester_name, obj.requester_email, status, obj.resolution
+        tg_chat_id, tg_source, tg_title = obj.telegram_chat_id, obj.source, obj.title
 
         def _notify():
-            from services.email_notifier import send_ticket_status_update_email, send_csat_request_email
-            send_ticket_status_update_email(req_name, req_email, ticket_id, obj.title, req_status, req_res or "")
-            if req_status == "resolved":
-                rate_url = f"{origin}/rate-ticket/{ticket_id}?"
-                send_csat_request_email(req_name, req_email, ticket_id, obj.title, rate_url)
+            if req_email and _looks_like_real_recipient(req_email):
+                from services.email_notifier import send_ticket_status_update_email, send_csat_request_email
+                send_ticket_status_update_email(req_name, req_email, ticket_id, tg_title, req_status, req_res or "")
+                if req_status == "resolved":
+                    rate_url = f"{origin}/rate-ticket/{ticket_id}?"
+                    send_csat_request_email(req_name, req_email, ticket_id, tg_title, rate_url)
+            if tg_source == "telegram" and tg_chat_id:
+                from services.telegram_bot import bot as telegram_bot
+                telegram_bot.notify_status_update(tg_chat_id, ticket_id, tg_title, req_status)
+                if req_status == "resolved":
+                    telegram_bot.notify_csat_request(tg_chat_id, ticket_id, tg_title)
 
         threading.Thread(target=_notify, daemon=True).start()
 

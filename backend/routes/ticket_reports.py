@@ -75,6 +75,10 @@ def get_report_data(
         total_hours = sum((t.updated_at - t.created_at).total_seconds() / 3600 for t in resolved_closed)
         avg_resolution_hours = round(total_hours / len(resolved_closed), 1)
 
+    rated = [t for t in tickets if t.csat_rating]
+    avg_csat_rating = round(sum(t.csat_rating for t in rated) / len(rated), 2) if rated else None
+    by_csat_rating = Counter(t.csat_rating for t in rated)
+
     return {
         "total": len(tickets),
         "by_status": dict(by_status),
@@ -86,6 +90,9 @@ def get_report_data(
         "by_source": dict(by_source),
         "by_sla_status": dict(by_sla),
         "avg_resolution_hours": avg_resolution_hours,
+        "avg_csat_rating": avg_csat_rating,
+        "csat_count": len(rated),
+        "by_csat_rating": dict(by_csat_rating),
         "tickets": [schemas.SupportTicketOut.model_validate(t).model_dump(mode="json") for t in tickets],
     }
 

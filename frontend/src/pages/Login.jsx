@@ -41,8 +41,8 @@ export default function Login() {
       <div className="w-full max-w-md relative">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">
-            💻
+          <div className="bg-white rounded-2xl shadow-lg mx-auto mb-4 px-5 py-3 inline-flex items-center justify-center">
+            <img src="/mobica-logo.png" alt="Mobica" className="h-8 w-auto" />
           </div>
           <h1 className="text-2xl font-bold text-white">نظام إدارة تكنولوجيا المعلومات</h1>
           <p className="text-yellow-200 text-sm mt-1">{BRAND_TAGLINE}</p>

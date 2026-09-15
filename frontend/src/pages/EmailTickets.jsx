@@ -49,6 +49,7 @@ function AssignModal({ ticket, engineers, onClose, onSave }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-5 space-y-4">
         <div className="flex items-center gap-2">
+          <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
           <span className="text-xl">👷</span>
           <h3 className="font-bold text-slate-800 text-sm">تعيين مهندس</h3>
         </div>

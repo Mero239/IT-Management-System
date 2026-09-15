@@ -24,7 +24,7 @@ export default function RateTicket() {
       })
       const data = await res.json()
       if (!res.ok) {
-        if (data.detail?.includes('من قبل')) setStatus('already')
+        if (data.detail?.includes('already')) setStatus('already')
         else { setStatus('error'); setErrorMsg(data.detail || '') }
         return
       }
@@ -40,11 +40,13 @@ export default function RateTicket() {
   }, []) // eslint-disable-line
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-yellow-800 to-yellow-700 flex items-center justify-center p-4" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-yellow-800 to-yellow-700 flex items-center justify-center p-4" dir="ltr">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg">💻</div>
-          <h1 className="text-white font-bold text-xl">نظام إدارة IT</h1>
+          <div className="bg-white rounded-2xl shadow-lg mx-auto mb-4 px-5 py-3 inline-flex items-center justify-center">
+            <img src="/mobica-logo.png" alt="Mobica" className="h-8 w-auto" />
+          </div>
+          <h1 className="text-white font-bold text-xl">IT Management System</h1>
           <p className="text-yellow-200 text-sm mt-1">{BRAND_TAGLINE}</p>
         </div>
 
@@ -52,26 +54,26 @@ export default function RateTicket() {
           {status === 'done' ? (
             <>
               <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 animate-bounce">🙏</div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">شكراً لتقييمك!</h2>
-              <p className="text-slate-500 text-sm">رأيك بيساعدنا نحسّن الخدمة باستمرار</p>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">Thank you for your feedback!</h2>
+              <p className="text-slate-500 text-sm">Your rating helps us keep improving our service.</p>
             </>
           ) : status === 'already' ? (
             <>
               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">✅</div>
-              <h2 className="text-lg font-bold text-slate-800 mb-2">تم تسجيل تقييمك من قبل</h2>
-              <p className="text-slate-500 text-sm">شكراً، وصلنا رأيك بالفعل على هذه التذكرة</p>
+              <h2 className="text-lg font-bold text-slate-800 mb-2">Rating already submitted</h2>
+              <p className="text-slate-500 text-sm">We already received your feedback for this ticket.</p>
             </>
           ) : status === 'error' ? (
             <>
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">⚠️</div>
-              <h2 className="text-lg font-bold text-slate-800 mb-2">حدث خطأ</h2>
-              <p className="text-slate-500 text-sm">{errorMsg || 'حاول مرة أخرى لاحقًا'}</p>
+              <h2 className="text-lg font-bold text-slate-800 mb-2">Something went wrong</h2>
+              <p className="text-slate-500 text-sm">{errorMsg || 'Please try again later.'}</p>
             </>
           ) : (
             <>
-              <h2 className="text-xl font-bold text-slate-800 mb-1">تذكرة #{id}</h2>
-              <p className="text-slate-500 text-sm mb-6">إزاي كانت تجربتك مع فريق الدعم الفني؟</p>
-              <div className="flex justify-center gap-1.5" dir="ltr">
+              <h2 className="text-xl font-bold text-slate-800 mb-1">Ticket #{id}</h2>
+              <p className="text-slate-500 text-sm mb-6">How was your experience with our IT support team?</p>
+              <div className="flex justify-center gap-1.5">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
                     key={n}
@@ -86,9 +88,12 @@ export default function RateTicket() {
                   </button>
                 ))}
               </div>
-              {status === 'saving' && <p className="text-xs text-slate-400 mt-4">جاري الحفظ...</p>}
+              {status === 'saving' && <p className="text-xs text-slate-400 mt-4">Saving...</p>}
             </>
           )}
+          <p className="text-xs text-slate-400 mt-6 pt-5 border-t border-slate-100">
+            Need further assistance? Contact IT Support — ext. 526
+          </p>
         </div>
       </div>
     </div>

@@ -839,7 +839,10 @@ function RestoreSection() {
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center text-2xl flex-shrink-0">⚠️</div>
               <div>
-                <h3 className="font-bold text-slate-800 text-lg">تأكيد الاستعادة</h3>
+                <div className="flex items-center gap-2">
+                  <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
+                  <h3 className="font-bold text-slate-800 text-lg">تأكيد الاستعادة</h3>
+                </div>
                 <p className="text-xs text-red-500 font-medium">إجراء لا يمكن التراجع عنه</p>
               </div>
             </div>

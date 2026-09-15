@@ -159,7 +159,10 @@ function ResolveModal({ ticket, onConfirm, onClose }) {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">✅</div>
             <div>
-              <h3 className="text-white font-bold">تسجيل حل المشكلة</h3>
+              <div className="flex items-center gap-2">
+                <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
+                <h3 className="text-white font-bold">تسجيل حل المشكلة</h3>
+              </div>
               <p className="text-yellow-200 text-xs mt-0.5 truncate max-w-xs">{ticket.title}</p>
             </div>
           </div>
@@ -273,7 +276,10 @@ function EditResolutionModal({ currentResolution, onSave, onClose }) {
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg z-10 overflow-hidden">
         <div className="bg-yellow-600 px-5 py-4">
-          <h3 className="text-white font-bold flex items-center gap-2">✏️ تعديل خطوات الحل</h3>
+          <h3 className="text-white font-bold flex items-center gap-2">
+            <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
+            ✏️ تعديل خطوات الحل
+          </h3>
         </div>
         <div className="p-5 space-y-3">
           <p className="text-xs text-slate-500">كل سطر = خطوة واحدة</p>
@@ -726,7 +732,10 @@ export default function TicketDetail() {
           onClick={e => e.target === e.currentTarget && setAssignOpen(false)}>
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setAssignOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 z-10">
-            <h3 className="font-bold text-slate-800 mb-4">تحويل التذكرة #{ticket.id}</h3>
+            <div className="flex items-center gap-2 mb-4">
+              <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
+              <h3 className="font-bold text-slate-800">تحويل التذكرة #{ticket.id}</h3>
+            </div>
             <p className="text-xs text-slate-500 mb-3 bg-slate-50 rounded-lg p-2">{ticket.title}</p>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {engineers.filter(e => e.active === 'true').map(eng => (

@@ -101,7 +101,10 @@ function AssignModal({ tickets, engineers, onAssign, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 z-10">
-        <h3 className="font-bold text-slate-800 mb-1">تعيين مهندس</h3>
+        <div className="flex items-center gap-2 mb-1">
+          <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
+          <h3 className="font-bold text-slate-800">تعيين مهندس</h3>
+        </div>
         <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mb-4 truncate">{label}</p>
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {engineers.filter(e => e.active === 'true').map(eng => (
@@ -138,7 +141,10 @@ function BulkStatusModal({ count, onApply, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xs p-5 z-10">
-        <h3 className="font-bold text-slate-800 mb-1">تغيير الحالة</h3>
+        <div className="flex items-center gap-2 mb-1">
+          <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
+          <h3 className="font-bold text-slate-800">تغيير الحالة</h3>
+        </div>
         <p className="text-xs text-slate-500 mb-4">{count} تذكرة محددة</p>
         <div className="space-y-2">
           {STATUSES.map(s => {

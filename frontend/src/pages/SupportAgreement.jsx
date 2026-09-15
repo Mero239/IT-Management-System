@@ -75,7 +75,9 @@ export default function SupportAgreement() {
       <div className="bg-gradient-to-br from-yellow-900 via-yellow-800 to-yellow-700 px-6 py-5">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl shrink-0">💻</div>
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0 p-1.5">
+              <img src="/mobica-logo.png" alt="Mobica" className="w-full h-full object-contain" />
+            </div>
             <div>
               <h1 className="text-white font-bold text-sm leading-tight">{t('app.name')}</h1>
               <p className="text-yellow-200 text-xs">{BRAND_TAGLINE}</p>

@@ -11,9 +11,12 @@ export default function Header({ title, subtitle }) {
 
   return (
     <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-800">{title}</h2>
-        {subtitle && <p className="text-slate-500 text-sm mt-0.5">{subtitle}</p>}
+      <div className="flex items-center gap-3">
+        <img src="/mobica-logo.png" alt="Mobica" className="h-7 w-auto shrink-0 hidden sm:block" />
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">{title}</h2>
+          {subtitle && <p className="text-slate-500 text-sm mt-0.5">{subtitle}</p>}
+        </div>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">

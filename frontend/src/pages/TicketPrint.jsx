@@ -132,7 +132,9 @@ export default function TicketPrint() {
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">💻</div>
+                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-2">
+                  <img src="/mobica-logo.png" alt="Mobica" className="w-full h-full object-contain" />
+                </div>
                 <div>
                   <h1 className="text-white font-bold text-xl leading-tight">نظام إدارة تكنولوجيا المعلومات</h1>
                   <p className="text-yellow-200 text-sm">{BRAND_TAGLINE}</p>

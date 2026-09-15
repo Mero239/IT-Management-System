@@ -67,6 +67,38 @@ def _strip_html(html: str) -> str:
     return text.strip()
 
 
+_BOUNCE_SENDER_MARKERS = (
+    "mailer-daemon", "postmaster", "mail delivery", "microsoftexchange",
+    "delivery status notification", "no-reply", "noreply", "mailer_daemon",
+)
+_BOUNCE_SUBJECT_MARKERS = (
+    "undeliverable", "undelivered mail", "undelivered message",
+    "delivery status notification", "delivery has failed", "mail delivery failure",
+    "returned mail", "failure notice", "message not delivered", "automatic reply",
+    "out of office", "auto-reply", "auto reply",
+)
+
+
+def _is_bounce_or_auto_reply(subject: str, sender: str, msg) -> bool:
+    """Detect NDR/bounce/auto-reply emails so they never get parsed into tickets —
+    without this, an automated bounce (e.g. a failed delivery to some unrelated
+    address landing in this inbox) gets AI-parsed as a support request, and if a
+    reply is later sent to its bogus sender address, that bounces too, creating
+    an infinite ticket-generation loop."""
+    subj_l = (subject or "").lower()
+    sender_l = (sender or "").lower()
+    if any(m in subj_l for m in _BOUNCE_SUBJECT_MARKERS):
+        return True
+    if any(m in sender_l for m in _BOUNCE_SENDER_MARKERS):
+        return True
+    if str(msg.get("Content-Type", "")).lower().startswith("multipart/report"):
+        return True
+    auto_submitted = str(msg.get("Auto-Submitted", "no")).lower()
+    if auto_submitted not in ("", "no"):
+        return True
+    return False
+
+
 def extract_email_body(msg) -> str:
     plain = ""
     html  = ""
@@ -104,6 +136,24 @@ Return ONLY valid JSON with these exact fields:
 - requester_email: sender email address
 
 Example: {{"title": "Laptop screen broken", "description": "Screen has cracks...", "priority": "high", "requester_name": "Ahmed Mohamed", "requester_email": "ahmed@company.com"}}"""
+
+
+def _fallback_parse(subject: str, body: str, sender: str) -> dict:
+    """Used when the AI call fails (quota, network, provider outage) so a real
+    inbound support email still becomes a ticket instead of being silently
+    dropped/retried forever — mirrors the AI+keyword-fallback pattern already
+    used for ticket routing."""
+    import re
+    m = re.search(r'[\w.+-]+@[\w-]+\.[\w.-]+', sender or "")
+    requester_email = m.group(0) if m else ""
+    requester_name = (sender or "").split("<")[0].strip(' "') if "<" in (sender or "") else ""
+    return {
+        "title": (subject or "Support request")[:100],
+        "description": body or subject or "",
+        "priority": "medium",
+        "requester_name": requester_name,
+        "requester_email": requester_email,
+    }
 
 
 def _extract_json(text: str) -> dict:
@@ -220,16 +270,21 @@ class EmailAgent:
 
     def _poll_once(self):
         from database import SessionLocal
+        from datetime import timedelta
         db = SessionLocal()
         mail = None
         try:
             mail = self._connect_imap()
             mail.select("INBOX")
 
-            # Search for UNSEEN messages
-            _, data = mail.search(None, "UNSEEN")
+            # Search by recent date rather than UNSEEN: a message can be marked \Seen by
+            # another client (webmail preview, another mailbox session) before this agent
+            # ever polls it, which would silently and permanently skip it under UNSEEN.
+            # Dedup is handled below via the processed_emails table instead.
+            since = (datetime.utcnow() - timedelta(days=3)).strftime("%d-%b-%Y")
+            _, data = mail.search(None, f"(SINCE {since})")
             uids = data[0].split()
-            logger.info(f"Found {len(uids)} unread email(s)")
+            logger.info(f"Found {len(uids)} recent email(s)")
 
             for uid in uids:
                 if self._stop_event.is_set():
@@ -247,8 +302,21 @@ class EmailAgent:
                     if self._is_processed(message_id, db):
                         continue
 
-                    # Parse with configured AI provider
-                    ticket_data = parse_with_ai(subject, body, sender, self.config)
+                    if _is_bounce_or_auto_reply(subject, sender, msg):
+                        logger.info(f"Skipping bounce/auto-reply email: {subject}")
+                        self._mark_processed(message_id, subject, sender, None, db)
+                        mail.store(uid, "+FLAGS", "\\Seen")
+                        continue
+
+                    # Parse with configured AI provider, falling back to a plain
+                    # subject/body ticket if the AI call fails (quota, outage, etc.)
+                    # so the email is never silently dropped or retried forever.
+                    try:
+                        ticket_data = parse_with_ai(subject, body, sender, self.config)
+                    except Exception as ai_err:
+                        logger.warning(f"AI parse failed ({ai_err}), using fallback parser")
+                        ticket_data = _fallback_parse(subject, body, sender)
+
                     ticket_id = self._create_ticket(ticket_data, message_id, db)
                     self._mark_processed(message_id, subject, sender, ticket_id, db)
 

@@ -104,8 +104,9 @@ class SupportTicket(Base):
     status = Column(String(50), default="open")          # open, in_progress, resolved, closed
     assigned_to = Column(String(200))
     resolution = Column(Text)
-    source = Column(String(50), default="manual")        # manual, email
+    source = Column(String(50), default="manual")        # manual, email, telegram
     source_email_id = Column(String(500), nullable=True)
+    telegram_chat_id = Column(Integer, nullable=True)     # set when source == "telegram", used to reply to the requester
     attachment_filename = Column(String(300), nullable=True)       # name on disk
     attachment_original_name = Column(String(300), nullable=True)
     attachment_size = Column(Integer, nullable=True)

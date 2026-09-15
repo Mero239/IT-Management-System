@@ -14,6 +14,12 @@ const STATUS_COLORS = {
   resolved: 'bg-yellow-100 text-yellow-700',
   closed: 'bg-slate-100 text-slate-500',
 }
+const STATUS_ICONS = {
+  open: '🔴',
+  in_progress: '🟡',
+  resolved: '✅',
+  closed: '⚪',
+}
 const PRIORITY_COLORS = {
   low: 'bg-slate-100 text-slate-600',
   medium: 'bg-yellow-100 text-yellow-700',
@@ -38,7 +44,8 @@ export default function Tickets() {
   const [branches, setBranches] = useState([])
   const [assets, setAssets] = useState([])
   const [engineers, setEngineers] = useState([])
-  const [filter, setFilter] = useState({ status: '', priority: '' })
+  const [filter, setFilter] = useState({ status: '', priority: '', date_from: '', date_to: '' })
+  const [dateOpen, setDateOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [detailModal, setDetailModal] = useState(false)
@@ -57,6 +64,8 @@ export default function Tickets() {
     const params = {}
     if (filter.status) params.status = filter.status
     if (filter.priority) params.priority = filter.priority
+    if (filter.date_from) params.date_from = filter.date_from
+    if (filter.date_to) params.date_to = filter.date_to
     ticketsApi.list(params).then((r) => setItems(r.data)).finally(() => setLoading(false))
   }
 
@@ -130,15 +139,68 @@ export default function Tickets() {
         <button onClick={openAdd} className="btn-primary"><span>+</span> {t('tickets.addBtn')}</button>
       </div>
 
-      <div className="card !p-4 flex gap-3 flex-wrap">
-        <select className="form-select w-auto" value={filter.status} onChange={(e) => setFilter((f) => ({ ...f, status: e.target.value }))}>
-          <option value="">{t('tickets.allStatuses')}</option>
-          {STATUSES.map((k) => <option key={k} value={k}>{t(`status.${k}`)}</option>)}
-        </select>
+      <div className="card !p-4 flex gap-3 flex-wrap items-center relative">
+        {/* Status quick filter — icon buttons */}
+        <div className="flex items-center gap-1.5 bg-slate-50 rounded-xl p-1">
+          <button
+            type="button"
+            title={t('tickets.allStatuses')}
+            onClick={() => setFilter((f) => ({ ...f, status: '' }))}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm transition-all ${
+              filter.status === '' ? 'bg-white shadow-sm ring-1 ring-slate-200' : 'opacity-50 hover:opacity-100'
+            }`}
+          >⬜</button>
+          {STATUSES.map((k) => (
+            <button
+              key={k}
+              type="button"
+              title={t(`status.${k}`)}
+              onClick={() => setFilter((f) => ({ ...f, status: f.status === k ? '' : k }))}
+              className={`w-9 h-9 rounded-lg flex items-center justify-center text-base transition-all ${
+                filter.status === k ? 'bg-white shadow-sm ring-1 ring-slate-200' : 'opacity-50 hover:opacity-100'
+              }`}
+            >{STATUS_ICONS[k]}</button>
+          ))}
+        </div>
+
         <select className="form-select w-auto" value={filter.priority} onChange={(e) => setFilter((f) => ({ ...f, priority: e.target.value }))}>
           <option value="">{t('tickets.allPriorities')}</option>
           {PRIORITIES.map((k) => <option key={k} value={k}>{t(`priority.${k}`)}</option>)}
         </select>
+
+        {/* Date quick filter — icon-triggered popover */}
+        <div className="relative">
+          <button
+            type="button"
+            title={t('tickets.filterByDate')}
+            onClick={() => setDateOpen((v) => !v)}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center text-base transition-all ${
+              filter.date_from || filter.date_to ? 'bg-yellow-100 ring-1 ring-yellow-300' : 'bg-slate-50 hover:bg-slate-100'
+            }`}
+          >📅</button>
+          {dateOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setDateOpen(false)} />
+              <div className="absolute top-11 start-0 z-20 bg-white rounded-xl shadow-lg border border-slate-100 p-3 space-y-2 w-56">
+                <div>
+                  <label className="form-label !text-xs">{t('tickets.dateFrom')}</label>
+                  <input type="date" className="form-input !py-2 !text-sm" value={filter.date_from}
+                    onChange={(e) => setFilter((f) => ({ ...f, date_from: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="form-label !text-xs">{t('tickets.dateTo')}</label>
+                  <input type="date" className="form-input !py-2 !text-sm" value={filter.date_to}
+                    onChange={(e) => setFilter((f) => ({ ...f, date_to: e.target.value }))} />
+                </div>
+                {(filter.date_from || filter.date_to) && (
+                  <button type="button" onClick={() => setFilter((f) => ({ ...f, date_from: '', date_to: '' }))}
+                    className="text-xs text-red-500 hover:underline">{t('tickets.clearDate')}</button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
         <span className="text-sm text-slate-400 self-center">{items.length} {t('tickets.countSuffix')}</span>
       </div>
 
