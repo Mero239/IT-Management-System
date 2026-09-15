@@ -24,6 +24,9 @@ import SoftwareReport from './pages/SoftwareReport'
 import EmailAgent from './pages/EmailAgent'
 import ITTeam from './pages/ITTeam'
 import NewTicket from './pages/NewTicket'
+import RateTicket from './pages/RateTicket'
+import CannedResponses from './pages/CannedResponses'
+import RecurringTickets from './pages/RecurringTickets'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
 import AdminEngineers from './pages/AdminEngineers'
@@ -65,7 +68,7 @@ function RequireAuth({ children }) {
 const TICKETS_ONLY_ALLOWED_PREFIXES = [
   '/tickets', '/sla', '/inbox', '/telegram-tickets', '/whatsapp-tickets',
   '/email-tickets', '/engineer-dashboard', '/knowledge-base', '/settings',
-  '/ticket-reports',
+  '/ticket-reports', '/canned-responses',
 ]
 
 function TicketsOnlyGuard({ children }) {
@@ -114,6 +117,7 @@ export default function App() {
               {/* Public — no auth */}
               <Route path="/new-ticket"       element={<NewTicket />} />
               <Route path="/support-agreement" element={<SupportAgreement />} />
+              <Route path="/rate-ticket/:id"  element={<RateTicket />} />
               <Route path="/login"            element={<LoginRedirect />} />
               <Route path="/forgot-password"  element={<ForgotPassword />} />
               <Route path="/reset-password"   element={<ResetPassword />} />
@@ -149,6 +153,8 @@ export default function App() {
                       <Route path="/admin/ticket-log"    element={<AdminTicketLog />} />
                       <Route path="/admin/channels"      element={<ChannelsConfig />} />
                       <Route path="/admin/ticket-routing" element={<TicketRouting />} />
+                      <Route path="/canned-responses"    element={<CannedResponses />} />
+                      <Route path="/admin/recurring-tickets" element={<RecurringTickets />} />
                       <Route path="/admin/monitor"       element={<ServerMonitor />} />
                       <Route path="/telegram-tickets"    element={<TelegramTickets />} />
                       <Route path="/whatsapp-tickets"    element={<WhatsAppTickets />} />

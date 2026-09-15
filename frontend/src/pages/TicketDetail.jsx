@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { departmentsApi, engineersApi, ticketsApi } from '../api/client'
+import { departmentsApi, engineersApi, ticketsApi, cannedResponsesApi, assetsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 const CATEGORY_MAP = {
@@ -109,9 +109,18 @@ function ResolveModal({ ticket, onConfirm, onClose }) {
   const [rootCause, setRootCause] = useState('')
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
+  const [canned, setCanned]     = useState([])
   const textRef = useRef(null)
 
   useEffect(() => { textRef.current?.focus() }, [])
+  useEffect(() => { cannedResponsesApi.list().then(r => setCanned(r.data)).catch(() => {}) }, [])
+
+  const insertCanned = (id) => {
+    const cr = canned.find(c => String(c.id) === id)
+    if (!cr) return
+    setSteps(s => s + (s.endsWith('\n') || s === '' ? '' : '\n') + cr.body)
+    setTimeout(() => textRef.current?.focus(), 10)
+  }
 
   const parsedSteps = steps.split('\n').map(s => s.trim()).filter(Boolean)
 
@@ -186,7 +195,19 @@ function ResolveModal({ ticket, onConfirm, onClose }) {
                 {parsedSteps.length} {parsedSteps.length === 1 ? 'خطوة' : 'خطوات'}
               </span>
             </div>
-            <p className="text-xs text-slate-400 mb-2">اكتب كل خطوة في سطر منفصل — ستُرقَّم تلقائياً</p>
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <p className="text-xs text-slate-400">اكتب كل خطوة في سطر منفصل — ستُرقَّم تلقائياً</p>
+              {canned.length > 0 && (
+                <select
+                  className="form-select !py-1 !text-xs w-40 shrink-0"
+                  value=""
+                  onChange={e => insertCanned(e.target.value)}
+                >
+                  <option value="">💬 إدراج رد جاهز</option>
+                  {canned.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </select>
+              )}
+            </div>
             <textarea
               ref={textRef}
               value={steps}
@@ -498,7 +519,16 @@ export default function TicketDetail() {
             <InfoRow label="المؤسسة"      value={ticket.organization?.name || '—'} icon="🏛️" />
             <InfoRow label="الفرع"        value={ticket.branch?.name || '—'} icon="📍" />
             <InfoRow label="نوع المشكلة"  value={ticket.category ? `${CATEGORY_MAP[ticket.category]?.icon || ''} ${CATEGORY_MAP[ticket.category]?.label || ticket.category}` : '—'} icon="🏷️" />
+            <InfoRow label="الجهاز المرتبط" value={ticket.asset?.name || '—'} icon="🖥️" />
             <InfoRow label="المسؤول"      value={ticket.assigned_to || 'غير محدد'} icon="🔧" highlight={!!ticket.assigned_to} />
+            {ticket.csat_rating && (
+              <InfoRow label="تقييم مقدّم الطلب" value={'⭐'.repeat(ticket.csat_rating) + ` (${ticket.csat_rating}/5)`} icon="😊" highlight />
+            )}
+            {ticket.escalated === 'true' && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2 text-xs text-red-600 font-medium">
+                ⚠️ تم تصعيد هذه التذكرة تلقائيًا لتجاوز/اقتراب موعد SLA
+              </div>
+            )}
           </div>
 
           {/* Attachment */}

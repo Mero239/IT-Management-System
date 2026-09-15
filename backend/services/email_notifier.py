@@ -203,6 +203,125 @@ def send_otp_admin_notice(engineer_name: str, engineer_email: str, admin_email: 
         return False
 
 
+STATUS_LABELS_AR = {"open": "مفتوحة", "in_progress": "قيد التنفيذ", "resolved": "محلولة", "closed": "مغلقة"}
+
+
+def send_ticket_status_update_email(requester_name: str, requester_email: str, ticket_id: int, ticket_title: str, new_status: str, resolution: str = "") -> bool:
+    cfg = _load_smtp_cfg()
+    sender = cfg.get("email", "it.support@mobica.net")
+    password = cfg.get("password", "")
+    if not password or not requester_email:
+        return False
+
+    status_label = STATUS_LABELS_AR.get(new_status, new_status)
+    subject = f"[تذكرة #{ticket_id}] تحديث الحالة: {status_label}"
+
+    resolution_block = ""
+    if resolution:
+        resolution_block = f"""
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px; margin: 16px 0;">
+          <p style="margin: 0 0 6px 0; color: #166534; font-weight: bold; font-size: 13px;">خطوات الحل</p>
+          <p style="margin: 0; color: #166534; font-size: 14px; white-space: pre-line;">{resolution}</p>
+        </div>
+        """
+
+    html_body = f"""
+    <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 20px;">
+      <div style="background: #059669; border-radius: 12px 12px 0 0; padding: 24px; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 20px;">💻 نظام إدارة تكنولوجيا المعلومات</h1>
+      </div>
+      <div style="background: white; border-radius: 0 0 12px 12px; padding: 28px; border: 1px solid #e2e8f0;">
+        <p style="font-size: 16px; color: #1e293b; margin-top: 0;">مرحباً <strong>{requester_name or ''}</strong>،</p>
+        <p style="color: #475569;">تم تحديث حالة تذكرتك:</p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin: 20px 0;">
+          <p style="margin: 0 0 8px 0; color: #334155; font-weight: bold; font-size: 14px;">🎫 تذكرة رقم #{ticket_id}</p>
+          <p style="margin: 0 0 10px 0; color: #334155; font-size: 15px;">{ticket_title}</p>
+          <span style="display: inline-block; background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: bold;">
+            {status_label}
+          </span>
+        </div>
+        {resolution_block}
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">
+          لو محتاج أي تواصل إضافي بخصوص التذكرة دي، رد على الإيميل ده.
+        </p>
+      </div>
+      <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 16px;">
+        IT Support System — Mobica
+      </p>
+    </div>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"IT Support <{sender}>"
+    msg["To"] = requester_email
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    try:
+        server = smtplib.SMTP("Imap.worldposta.com", 587, timeout=15)
+        server.ehlo(); server.starttls(); server.ehlo()
+        server.login(sender, password)
+        server.sendmail(sender, [requester_email], msg.as_string())
+        server.quit()
+        logger.info(f"Status update email sent to {requester_email} for ticket #{ticket_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send status update email to {requester_email}: {e}")
+        return False
+
+
+def send_csat_request_email(requester_name: str, requester_email: str, ticket_id: int, ticket_title: str, rate_url: str) -> bool:
+    cfg = _load_smtp_cfg()
+    sender = cfg.get("email", "it.support@mobica.net")
+    password = cfg.get("password", "")
+    if not password or not requester_email:
+        return False
+
+    subject = f"[تذكرة #{ticket_id}] قيّم تجربتك معنا"
+    stars = "".join(
+        f'<a href="{rate_url}&rating={i}" style="text-decoration:none; font-size: 34px; margin: 0 4px; color: #f59e0b;">★</a>'
+        for i in range(1, 6)
+    )
+
+    html_body = f"""
+    <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 20px;">
+      <div style="background: #059669; border-radius: 12px 12px 0 0; padding: 24px; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 20px;">💻 نظام إدارة تكنولوجيا المعلومات</h1>
+      </div>
+      <div style="background: white; border-radius: 0 0 12px 12px; padding: 28px; border: 1px solid #e2e8f0; text-align: center;">
+        <p style="font-size: 16px; color: #1e293b;">مرحباً <strong>{requester_name or ''}</strong>،</p>
+        <p style="color: #475569;">
+          تم حل تذكرتك رقم <strong>#{ticket_id}</strong> ("{ticket_title}") — إزاي كانت تجربتك معانا؟
+        </p>
+        <div style="margin: 24px 0;">{stars}</div>
+        <p style="color: #94a3b8; font-size: 13px;">اضغط على عدد النجوم اللي يعبّر عن رأيك</p>
+      </div>
+      <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 16px;">
+        IT Support System — Mobica
+      </p>
+    </div>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"IT Support <{sender}>"
+    msg["To"] = requester_email
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    try:
+        server = smtplib.SMTP("Imap.worldposta.com", 587, timeout=15)
+        server.ehlo(); server.starttls(); server.ehlo()
+        server.login(sender, password)
+        server.sendmail(sender, [requester_email], msg.as_string())
+        server.quit()
+        logger.info(f"CSAT request email sent to {requester_email} for ticket #{ticket_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send CSAT request email to {requester_email}: {e}")
+        return False
+
+
 def send_assignment_email(engineer_name: str, engineer_email: str, ticket_id: int, ticket_title: str, requester_name: str = "") -> bool:
     cfg = _load_smtp_cfg()
     sender = cfg.get("email", "it.support@mobica.net")

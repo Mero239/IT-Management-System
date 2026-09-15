@@ -148,6 +148,9 @@ export default function NewTicket() {
   const [empLookup, setEmpLookup] = useState(null)   // null | 'loading' | 'found' | 'not_found'
   const [attachment, setAttachment] = useState(null)
   const [attachmentPreview, setAttachmentPreview] = useState('')
+  const [kbSuggestions, setKbSuggestions] = useState([])
+  const [kbLoading, setKbLoading]     = useState(false)
+  const [kbDismissed, setKbDismissed] = useState(false)
   const topRef                  = useRef()
   const lookupTimer             = useRef()
 
@@ -157,6 +160,26 @@ export default function NewTicket() {
     branchesApi.list().then(r => setBranches(r.data)).catch(() => {})
     getWaConfig().then(cfg => { if (cfg?.whatsapp_phone) setWaConfig(cfg) })
   }, [])
+
+  /* KB self-service suggestions while typing the problem title (step 2) */
+  useEffect(() => {
+    if (step !== 2) return
+    const q = form.title.trim()
+    if (q.length < 4) { setKbSuggestions([]); return }
+    setKbLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const r = await fetch(`${API_BASE}/tickets/knowledge-base?search=${encodeURIComponent(q)}&page_size=3`)
+        if (r.ok) {
+          const data = await r.json()
+          const items = data.items || []
+          setKbSuggestions(items)
+          if (items.length > 0) setKbDismissed(false)
+        }
+      } catch {} finally { setKbLoading(false) }
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [form.title, step])
 
   const handleAttachment = (file) => {
     if (!file) { setAttachment(null); setAttachmentPreview(''); return }
@@ -517,6 +540,40 @@ export default function NewTicket() {
                 onChange={e => set('title', e.target.value)}
               />
             </Input>
+
+            {kbLoading && (
+              <p className="text-xs text-slate-400 flex items-center gap-1.5">⏳ جاري البحث عن حلول مشابهة...</p>
+            )}
+
+            {kbSuggestions.length > 0 && !kbDismissed && (
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-blue-800">💡 حلول مشابهة قد تفيدك</p>
+                  <button type="button" onClick={() => setKbDismissed(true)} className="text-blue-400 text-xs shrink-0">إخفاء ✕</button>
+                </div>
+                <div className="space-y-2">
+                  {kbSuggestions.map(item => (
+                    <div key={item.id} className="bg-white rounded-xl p-3 border border-blue-100">
+                      <p className="text-sm font-semibold text-slate-700">{item.title}</p>
+                      {item.steps && item.steps.length > 0 ? (
+                        <ul className="mt-1.5 space-y-1">
+                          {item.steps.slice(0, 3).map((s, i) => (
+                            <li key={i} className="text-xs text-slate-500 flex gap-1.5">
+                              <span className="shrink-0">{i + 1}.</span><span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : item.resolution ? (
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-3">{item.resolution}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-blue-500">
+                  جرّب الحل ده الأول، ولو المشكلة لسه موجودة كمّل تقديم الطلب عادي في الخطوات الجاية.
+                </p>
+              </div>
+            )}
 
             <Input label="وصف المشكلة بالتفصيل"
               hint="متى بدأت؟ ماذا جربت؟ هل تؤثر على زملائك؟">

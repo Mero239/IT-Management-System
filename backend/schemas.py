@@ -118,6 +118,7 @@ class SupportTicketBase(BaseModel):
     department_id: Optional[int] = None
     organization_id: Optional[int] = None
     branch_id: Optional[int] = None
+    asset_id: Optional[int] = None
     category: Optional[str] = None
     priority: str = "medium"
     status: str = "open"
@@ -136,11 +137,15 @@ class SupportTicketOut(SupportTicketBase):
     department: Optional[DepartmentOut] = None
     organization: Optional[OrganizationOut] = None
     branch: Optional[BranchOut] = None
+    asset: Optional[AssetOut] = None
     sla_hours: Optional[int] = None
     sla_due_at: Optional[datetime] = None
     sla_status: Optional[str] = None
     attachment_original_name: Optional[str] = None
     attachment_size: Optional[int] = None
+    csat_rating: Optional[int] = None
+    csat_submitted_at: Optional[datetime] = None
+    escalated: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -253,6 +258,56 @@ class TicketRoutingRuleOut(TicketRoutingRuleBase):
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+class CannedResponseBase(BaseModel):
+    title: str
+    body: str
+
+
+class CannedResponseCreate(CannedResponseBase):
+    pass
+
+
+class CannedResponseOut(CannedResponseBase):
+    id: int
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class RecurringTemplateBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    priority: str = "medium"
+    department_id: Optional[int] = None
+    organization_id: Optional[int] = None
+    branch_id: Optional[int] = None
+    assigned_to: Optional[str] = None
+    frequency: str = "monthly"
+    day_of_week: Optional[int] = None
+    day_of_month: Optional[int] = None
+    active: str = "true"
+
+
+class RecurringTemplateCreate(RecurringTemplateBase):
+    pass
+
+
+class RecurringTemplateOut(RecurringTemplateBase):
+    id: int
+    last_created_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    department: Optional[DepartmentOut] = None
+    organization: Optional[OrganizationOut] = None
+    branch: Optional[BranchOut] = None
+
+    model_config = {"from_attributes": True}
+
+
+class CsatSubmit(BaseModel):
+    rating: int
 
 
 class TicketReportPresetCreate(BaseModel):

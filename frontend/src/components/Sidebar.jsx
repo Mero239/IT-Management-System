@@ -20,6 +20,7 @@ const NAV_ITEMS = [
       { to: '/engineer-dashboard', key: 'nav.myTickets',        icon: '👷' },
       { to: '/knowledge-base',    key: 'nav.knowledgeBase',     icon: '📚' },
       { to: '/ticket-reports',    key: 'nav.ticketReports',     icon: '📊' },
+      { to: '/canned-responses',  key: 'nav.cannedResponses',   icon: '💬' },
       { to: '/support-agreement', key: 'nav.supportAgreement',  icon: '🤝' },
     ],
   },
@@ -44,6 +45,7 @@ const ADMIN_GROUP = {
     { to: '/admin/engineers',   key: 'nav.adminEngineers',   icon: '🛡️' },
     { to: '/admin/channels',    key: 'nav.adminChannels',    icon: '📱' },
     { to: '/admin/ticket-routing', key: 'nav.adminTicketRouting', icon: '🧭' },
+    { to: '/admin/recurring-tickets', key: 'nav.adminRecurringTickets', icon: '🔁' },
     { to: '/admin/monitor',     key: 'nav.adminMonitor',     icon: '📡' },
   ],
 }

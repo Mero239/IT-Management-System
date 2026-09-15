@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, case, func
@@ -357,6 +357,24 @@ def download_ticket_attachment(ticket_id: int, db: Session = Depends(get_db)):
     return FileResponse(path, filename=obj.attachment_original_name)
 
 
+@router.post("/{ticket_id}/csat")
+def submit_csat(ticket_id: int, data: schemas.CsatSubmit, db: Session = Depends(get_db)):
+    # Intentionally public (no auth) — reached from a link in the resolution
+    # email sent to the requester. One rating per ticket (first submission wins).
+    if data.rating < 1 or data.rating > 5:
+        raise HTTPException(status_code=400, detail="التقييم يجب أن يكون بين 1 و5")
+    obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
+    if obj.csat_rating is not None:
+        raise HTTPException(status_code=400, detail="تم تسجيل تقييم لهذه التذكرة من قبل")
+    obj.csat_rating = data.rating
+    obj.csat_submitted_at = datetime.now(timezone.utc)
+    db.commit()
+    _add_activity(db, ticket_id, f"⭐ قيّم مقدّم الطلب التذكرة: {data.rating}/5")
+    return {"message": "شكراً لتقييمك"}
+
+
 @router.put("/{ticket_id}", response_model=schemas.SupportTicketOut)
 def update_ticket(ticket_id: int, ticket: schemas.SupportTicketCreate, db: Session = Depends(get_db), _engineer=Depends(get_current_engineer)):
     obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
@@ -379,6 +397,7 @@ def update_ticket(ticket_id: int, ticket: schemas.SupportTicketCreate, db: Sessi
 def update_ticket_status(
     ticket_id: int,
     status: str,
+    request: Request,
     assigned_to: Optional[str] = None,
     resolution: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -402,6 +421,20 @@ def update_ticket_status(
         steps = [s.strip() for s in resolution.split('\n') if s.strip()]
         summary = steps[0][:60] + ('...' if len(steps[0]) > 60 else '') if steps else ''
         _add_activity(db, ticket_id, f"تم تسجيل خطوات الحل ({len(steps)} خطوة){': ' + summary if summary else ''}")
+
+    if status != old_status and obj.requester_email:
+        origin = request.headers.get("origin", "http://localhost:5173")
+        req_name, req_email, req_status, req_res = obj.requester_name, obj.requester_email, status, obj.resolution
+
+        def _notify():
+            from services.email_notifier import send_ticket_status_update_email, send_csat_request_email
+            send_ticket_status_update_email(req_name, req_email, ticket_id, obj.title, req_status, req_res or "")
+            if req_status == "resolved":
+                rate_url = f"{origin}/rate-ticket/{ticket_id}?"
+                send_csat_request_email(req_name, req_email, ticket_id, obj.title, rate_url)
+
+        threading.Thread(target=_notify, daemon=True).start()
+
     return {"message": "تم التحديث"}
 
 

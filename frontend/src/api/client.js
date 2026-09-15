@@ -109,6 +109,21 @@ export const ticketRoutingApi = {
   delete: (id) => api.delete(`/ticket-routing/${id}`),
 }
 
+export const cannedResponsesApi = {
+  list: () => api.get('/canned-responses/'),
+  create: (data) => api.post('/canned-responses/', data),
+  update: (id, data) => api.put(`/canned-responses/${id}`, data),
+  delete: (id) => api.delete(`/canned-responses/${id}`),
+}
+
+export const recurringTicketsApi = {
+  list: () => api.get('/recurring-tickets/'),
+  create: (data) => api.post('/recurring-tickets/', data),
+  update: (id, data) => api.put(`/recurring-tickets/${id}`, data),
+  delete: (id) => api.delete(`/recurring-tickets/${id}`),
+  runNow: (id) => api.post(`/recurring-tickets/${id}/run-now`),
+}
+
 export const ticketReportsApi = {
   data: (params) => api.get('/ticket-reports/data', { params }),
   listPresets: () => api.get('/ticket-reports/presets'),

@@ -109,12 +109,18 @@ class SupportTicket(Base):
     attachment_filename = Column(String(300), nullable=True)       # name on disk
     attachment_original_name = Column(String(300), nullable=True)
     attachment_size = Column(Integer, nullable=True)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=True)
+    csat_rating = Column(Integer, nullable=True)              # 1-5, set once by requester after resolution
+    csat_submitted_at = Column(DateTime(timezone=True), nullable=True)
+    escalated = Column(String(5), default="false")            # "true" once auto-escalated for this SLA breach risk
+    recurring_template_id = Column(Integer, ForeignKey("recurring_ticket_templates.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     department = relationship("Department", back_populates="tickets")
     organization = relationship("Organization")
     branch = relationship("Branch")
+    asset = relationship("Asset")
     comments = relationship("TicketComment", back_populates="ticket", order_by="TicketComment.created_at")
 
     @property
@@ -275,6 +281,41 @@ class ProcessedEmail(Base):
     sender = Column(String(200))
     ticket_id = Column(Integer, nullable=True)
     processed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TicketCannedResponse(Base):
+    """Reusable reply/resolution text templates engineers can insert into a
+    ticket comment or resolution instead of retyping common answers."""
+    __tablename__ = "ticket_canned_responses"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class RecurringTicketTemplate(Base):
+    """A ticket that auto-creates itself on a schedule (daily/weekly/monthly) —
+    e.g. 'Monthly network check'. Preventive-maintenance style tickets."""
+    __tablename__ = "recurring_ticket_templates"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+    category = Column(String(50), nullable=True)
+    priority = Column(String(50), default="medium")
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
+    assigned_to = Column(String(200), nullable=True)
+    frequency = Column(String(20), default="monthly")     # daily | weekly | monthly
+    day_of_week = Column(Integer, nullable=True)           # 0=Monday .. 6=Sunday, for weekly
+    day_of_month = Column(Integer, nullable=True)          # 1-28, for monthly
+    active = Column(String(5), default="true")
+    last_created_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    department = relationship("Department")
+    organization = relationship("Organization")
+    branch = relationship("Branch")
 
 
 class TicketReportPreset(Base):

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ticketsApi, departmentsApi, engineersApi, organizationsApi, branchesApi } from '../api/client'
+import { ticketsApi, departmentsApi, engineersApi, organizationsApi, branchesApi, assetsApi } from '../api/client'
 import Modal from '../components/Modal'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
@@ -23,7 +23,7 @@ const PRIORITY_COLORS = {
 
 const emptyForm = {
   title: '', description: '', requester_name: '', requester_email: '',
-  department_id: '', organization_id: '', branch_id: '', category: '',
+  department_id: '', organization_id: '', branch_id: '', category: '', asset_id: '',
   priority: 'medium', status: 'open', assigned_to: '', resolution: '',
 }
 
@@ -36,6 +36,7 @@ export default function Tickets() {
   const [departments, setDepartments] = useState([])
   const [organizations, setOrganizations] = useState([])
   const [branches, setBranches] = useState([])
+  const [assets, setAssets] = useState([])
   const [engineers, setEngineers] = useState([])
   const [filter, setFilter] = useState({ status: '', priority: '' })
   const [loading, setLoading] = useState(true)
@@ -63,6 +64,7 @@ export default function Tickets() {
   useEffect(() => { departmentsApi.list().then((r) => setDepartments(r.data)) }, [])
   useEffect(() => { organizationsApi.list().then((r) => setOrganizations(r.data)) }, [])
   useEffect(() => { branchesApi.list().then((r) => setBranches(r.data)) }, [])
+  useEffect(() => { assetsApi.list().then((r) => setAssets(r.data)) }, [])
   useEffect(() => { engineersApi.list().then((r) => setEngineers(r.data)) }, [])
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setError(''); setModal(true) }
@@ -74,6 +76,7 @@ export default function Tickets() {
       organization_id: item.organization_id || '',
       branch_id: item.branch_id || '',
       category: item.category || '',
+      asset_id: item.asset_id || '',
     })
     setError(''); setModal(true)
   }
@@ -89,6 +92,7 @@ export default function Tickets() {
         organization_id: form.organization_id || null,
         branch_id: form.branch_id || null,
         category: form.category || null,
+        asset_id: form.asset_id || null,
       }
       if (editing) await ticketsApi.update(editing.id, data)
       else await ticketsApi.create(data)
@@ -335,6 +339,13 @@ export default function Tickets() {
             <select className="form-select" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
               <option value="">{t('tickets.form.none')}</option>
               {CATEGORIES.map((c) => <option key={c} value={c}>{t(`category.${c}`)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="form-label">{t('tickets.form.asset')}</label>
+            <select className="form-select" value={form.asset_id} onChange={(e) => setForm((f) => ({ ...f, asset_id: e.target.value }))}>
+              <option value="">{t('tickets.form.none')}</option>
+              {assets.map((a) => <option key={a.id} value={a.id}>{a.name}{a.employee_code ? ` (${a.employee_code})` : ''}</option>)}
             </select>
           </div>
           <div>
