@@ -122,8 +122,12 @@ class ITEngineer(Base):
     employee_code = Column(String(50), nullable=True, index=True)
     role = Column(String(100), default="IT Engineer")
     active = Column(String(10), default="true")
-    # permission_level: admin | engineer | viewer
+    # permission_level: admin | engineer | viewer — what they can DO to tickets
     permission_level = Column(String(20), default="engineer")
+    # access_scope: full | tickets_only — which PART of the app they can see at all.
+    # tickets_only restricts a user to the ticketing system (all its channels) only —
+    # no assets, departments, licensed software, reports, employees, mailboxes, etc.
+    access_scope = Column(String(20), default="full")
     password_hash = Column(String(200), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -98,6 +98,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
             "email": eng.email,
             "role": eng.role,
             "permission_level": eng.permission_level,
+            "access_scope": eng.access_scope,
         },
     }
 
@@ -110,6 +111,7 @@ def me(engineer=Depends(get_current_engineer)):
         "email": engineer.email,
         "role": engineer.role,
         "permission_level": engineer.permission_level,
+        "access_scope": engineer.access_scope,
         "created_at": engineer.created_at.isoformat() if engineer.created_at else None,
     }
 
@@ -128,6 +130,7 @@ def update_profile(data: UpdateProfileRequest, engineer=Depends(get_current_engi
         "email": engineer.email,
         "role": engineer.role,
         "permission_level": engineer.permission_level,
+        "access_scope": engineer.access_scope,
         "created_at": engineer.created_at.isoformat() if engineer.created_at else None,
     }
 

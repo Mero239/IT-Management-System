@@ -13,7 +13,12 @@ const PERM = {
   viewer:   { label: 'مشاهد',  color: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400', icon: '👁️' },
 }
 
-const emptyForm = { name: '', email: '', role: 'IT Engineer', active: 'true', permission_level: 'engineer' }
+const SCOPE = {
+  full:         { label: 'كل النظام',    color: 'bg-slate-100 text-slate-600 border-slate-200', icon: '🗂️' },
+  tickets_only: { label: 'التذاكر فقط',  color: 'bg-blue-100 text-blue-700 border-blue-200',    icon: '🎫' },
+}
+
+const emptyForm = { name: '', email: '', role: 'IT Engineer', active: 'true', permission_level: 'engineer', access_scope: 'full' }
 
 // ── Admin guard ───────────────────────────────────────────────────────────────
 function AdminGuard({ children }) {
@@ -27,11 +32,13 @@ function AdminGuard({ children }) {
 }
 
 // ── Engineer card ─────────────────────────────────────────────────────────────
-function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onResetPwd, onDelete, onViewTickets }) {
+function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onToggleScope, onResetPwd, onDelete, onViewTickets }) {
   const [stats, setStats] = useState(null)
   const [resetting, setResetting] = useState(false)
   const [toggling, setToggling] = useState(false)
+  const [scoping, setScoping] = useState(false)
   const perm = PERM[eng.permission_level] || PERM.engineer
+  const scope = SCOPE[eng.access_scope] || SCOPE.full
   const isActive = eng.active === 'true'
 
   useEffect(() => {
@@ -49,6 +56,14 @@ function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onResetPwd, onDelet
     setToggling(true)
     try { await onToggleActive(eng.id, isActive ? 'false' : 'true') }
     finally { setToggling(false) }
+  }
+
+  const handleToggleScope = async () => {
+    const next = eng.access_scope === 'tickets_only' ? 'full' : 'tickets_only'
+    if (next === 'tickets_only' && !confirm(`حصر وصول ${eng.name} على نظام التذاكر فقط (يخفي باقي أجزاء النظام)؟`)) return
+    setScoping(true)
+    try { await onToggleScope(eng.id, next) }
+    finally { setScoping(false) }
   }
 
   return (
@@ -85,6 +100,14 @@ function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onResetPwd, onDelet
             title="انقر لتغيير الصلاحية"
           >
             {perm.icon} {perm.label}
+          </button>
+          <button
+            onClick={handleToggleScope}
+            disabled={scoping}
+            className={`badge border text-xs cursor-pointer hover:opacity-80 transition-opacity ${scope.color} ${scoping ? 'opacity-50' : ''}`}
+            title="انقر لتبديل نطاق الوصول"
+          >
+            {scope.icon} {scope.label}
           </button>
           {!isActive && <span className="badge bg-red-100 text-red-500 text-xs">معطّل</span>}
         </div>
@@ -215,6 +238,12 @@ export default function AdminEngineers() {
     showToast(active === 'true' ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب', active === 'true' ? 'success' : 'warn')
   }
 
+  const handleToggleScope = async (id, scope) => {
+    await engineersApi.setAccessScope(id, scope)
+    load()
+    showToast(scope === 'tickets_only' ? 'تم حصر الوصول على نظام التذاكر فقط' : 'تم فتح الوصول لكل النظام')
+  }
+
   const handleResetPwd = async (id) => {
     await engineersApi.resetPassword(id)
     showToast(`تمت إعادة تعيين كلمة المرور إلى ${DEFAULT_PASSWORD}`)
@@ -316,6 +345,7 @@ export default function AdminEngineers() {
                 onEdit={openEdit}
                 onPerm={handlePerm}
                 onToggleActive={handleToggleActive}
+                onToggleScope={handleToggleScope}
                 onResetPwd={handleResetPwd}
                 onDelete={handleDelete}
                 onViewTickets={handleViewTickets}
@@ -374,6 +404,21 @@ export default function AdminEngineers() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label className="form-label">نطاق الوصول</label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                {Object.entries(SCOPE).map(([key, s]) => (
+                  <button key={key} type="button"
+                    onClick={() => setForm(f => ({ ...f, access_scope: key }))}
+                    className={`p-3 rounded-xl border-2 text-center transition-all ${form.access_scope === key ? `${s.color} shadow-sm` : 'border-slate-100 hover:border-slate-200'}`}>
+                    <div className="text-xl mb-1">{s.icon}</div>
+                    <div className="text-xs font-bold text-slate-700">{s.label}</div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">"التذاكر فقط" بتخفي كل أجزاء النظام التانية (الأصول، الأقسام، التقارير...) وتسيب بس نظام التذاكر بكل قنواته.</p>
             </div>
 
             {!editing && (

@@ -9,6 +9,7 @@ import models
 router = APIRouter(prefix="/engineers", tags=["engineers"])
 
 VALID_PERMISSIONS = ["admin", "engineer", "viewer"]
+VALID_ACCESS_SCOPES = ["full", "tickets_only"]
 
 
 def _require_admin(engineer):
@@ -57,6 +58,7 @@ class EngineerCreate(BaseModel):
     role: Optional[str] = "IT Engineer"
     active: Optional[str] = "true"
     permission_level: Optional[str] = "engineer"
+    access_scope: Optional[str] = "full"
 
 
 class EngineerOut(BaseModel):
@@ -67,6 +69,7 @@ class EngineerOut(BaseModel):
     role: str
     active: str
     permission_level: str
+    access_scope: str = "full"
     model_config = {"from_attributes": True}
 
 
@@ -80,6 +83,8 @@ def create_engineer(data: EngineerCreate, db: Session = Depends(get_db), enginee
     _require_admin(engineer)
     if data.permission_level not in VALID_PERMISSIONS:
         raise HTTPException(400, f"permission_level must be one of {VALID_PERMISSIONS}")
+    if data.access_scope not in VALID_ACCESS_SCOPES:
+        raise HTTPException(400, f"access_scope must be one of {VALID_ACCESS_SCOPES}")
     existing = db.query(models.ITEngineer).filter(models.ITEngineer.email == data.email).first()
     if existing:
         raise HTTPException(400, f"Email already exists: {data.email}")
@@ -95,6 +100,8 @@ def update_engineer(eid: int, data: EngineerCreate, db: Session = Depends(get_db
     _require_admin(engineer)
     if data.permission_level not in VALID_PERMISSIONS:
         raise HTTPException(400, f"permission_level must be one of {VALID_PERMISSIONS}")
+    if data.access_scope not in VALID_ACCESS_SCOPES:
+        raise HTTPException(400, f"access_scope must be one of {VALID_ACCESS_SCOPES}")
     obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
     if not obj:
         raise HTTPException(404, "Not found")
@@ -116,6 +123,19 @@ def set_permission(eid: int, permission_level: str, db: Session = Depends(get_db
     obj.permission_level = permission_level
     db.commit()
     return {"message": "Updated", "permission_level": permission_level}
+
+
+@router.patch("/{eid}/access-scope")
+def set_access_scope(eid: int, access_scope: str, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    _require_admin(engineer)
+    if access_scope not in VALID_ACCESS_SCOPES:
+        raise HTTPException(400, f"Must be one of {VALID_ACCESS_SCOPES}")
+    obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
+    if not obj:
+        raise HTTPException(404, "Not found")
+    obj.access_scope = access_scope
+    db.commit()
+    return {"message": "Updated", "access_scope": access_scope}
 
 
 @router.get("/permission-matrix")

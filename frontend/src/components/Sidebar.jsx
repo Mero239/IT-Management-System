@@ -111,6 +111,12 @@ export default function Sidebar() {
     setCollapsed(next)
   }
 
+  // Users restricted to access_scope 'tickets_only' see nothing but the
+  // ticketing system's own channels — flattened, since it's their entire menu.
+  const isTicketsOnly = engineer?.access_scope === 'tickets_only'
+  const ticketingGroup = NAV_ITEMS.find(i => i.key === 'nav.ticketingSystem')
+  const visibleNavItems = isTicketsOnly && ticketingGroup ? ticketingGroup.children : NAV_ITEMS
+
   const allGroups = [...NAV_ITEMS.filter(i => i.children), ADMIN_GROUP]
 
   const groupHasActiveChild = (item) =>
@@ -282,7 +288,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map((item) => (
+        {visibleNavItems.map((item) => (
           item.children ? (
             <NavGroup
               key={item.key}

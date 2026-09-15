@@ -56,6 +56,27 @@ function RequireAuth({ children }) {
   return children
 }
 
+// Users with access_scope 'tickets_only' can only reach the ticketing
+// system's own pages (+ their own account settings). Direct URL access to
+// anything else redirects back to /tickets — this backs up the Sidebar's
+// nav filtering so it can't be bypassed by typing a URL directly.
+const TICKETS_ONLY_ALLOWED_PREFIXES = [
+  '/tickets', '/sla', '/inbox', '/telegram-tickets', '/whatsapp-tickets',
+  '/email-tickets', '/engineer-dashboard', '/knowledge-base', '/settings',
+]
+
+function TicketsOnlyGuard({ children }) {
+  const { engineer } = useAuth()
+  const location = useLocation()
+  if (engineer?.access_scope === 'tickets_only') {
+    const allowed = TICKETS_ONLY_ALLOWED_PREFIXES.some(
+      (p) => location.pathname === p || location.pathname.startsWith(p + '/')
+    )
+    if (!allowed) return <Navigate to="/tickets" replace />
+  }
+  return children
+}
+
 function InternalLayout({ children }) {
   const { mobileView, sidebarOpen, setSidebarOpen } = useDisplay()
   const { t } = useLanguage()
@@ -97,6 +118,7 @@ export default function App() {
               {/* Internal — auth required */}
               <Route path="/*" element={
                 <RequireAuth>
+                  <TicketsOnlyGuard>
                   <InternalLayout>
                     <Routes>
                       <Route path="/"                    element={<Dashboard />} />
@@ -134,6 +156,7 @@ export default function App() {
                       <Route path="/mailboxes/:id"       element={<MailboxDetail />} />
                     </Routes>
                   </InternalLayout>
+                  </TicketsOnlyGuard>
                 </RequireAuth>
               } />
             </Routes>

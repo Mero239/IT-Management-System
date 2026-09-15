@@ -65,6 +65,7 @@ export const engineersApi = {
   update: (id, data) => api.put(`/engineers/${id}`, data),
   setPermission: (id, level) => api.patch(`/engineers/${id}/permission`, null, { params: { permission_level: level } }),
   setActive: (id, active) => api.patch(`/engineers/${id}/active`, null, { params: { active } }),
+  setAccessScope: (id, access_scope) => api.patch(`/engineers/${id}/access-scope`, null, { params: { access_scope } }),
   stats: (id) => api.get(`/engineers/${id}/stats`),
   permissionMatrix: () => api.get('/engineers/permission-matrix'),
   resetPassword: (id) => api.post(`/auth/reset-password/${id}`),
