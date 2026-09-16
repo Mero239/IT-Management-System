@@ -7,6 +7,52 @@ logger = logging.getLogger("ticket_escalation")
 CHECK_INTERVAL_SECONDS = 300  # 5 minutes
 
 
+def _nudge_engineer(ticket, db):
+    """Early, gentle heads-up sent straight to the assigned engineer while a
+    ticket is only at_risk — most tickets should get handled here and never
+    reach the admin-facing escalation below."""
+    import models
+
+    if not ticket.assigned_to:
+        return
+    eng = db.query(models.ITEngineer).filter(models.ITEngineer.name == ticket.assigned_to).first()
+    message = f"⏰ تذكرة #{ticket.id} \"{ticket.title}\" قريبة من تجاوز موعد الـ SLA — يُفضّل المتابعة قريبًا"
+
+    notif = models.Notification(
+        engineer_name=ticket.assigned_to,
+        engineer_email=eng.email if eng else "",
+        ticket_id=ticket.id,
+        ticket_title=ticket.title,
+        message=message,
+        is_read="false",
+        email_sent="false",
+    )
+    db.add(notif)
+    ticket.sla_nudged = "true"
+    db.commit()
+    notif_id = notif.id
+
+    if eng and eng.email:
+        from services.email_notifier import send_assignment_email
+        from database import SessionLocal
+
+        def _send():
+            sent = send_assignment_email(eng.name, eng.email, ticket.id, f"[تذكير SLA] {ticket.title}", ticket.requester_name or "")
+            if sent:
+                session = SessionLocal()
+                try:
+                    n = session.query(models.Notification).filter(models.Notification.id == notif_id).first()
+                    if n:
+                        n.email_sent = "true"
+                        session.commit()
+                finally:
+                    session.close()
+
+        threading.Thread(target=_send, daemon=True).start()
+
+    logger.info(f"Nudged {ticket.assigned_to} about at-risk ticket #{ticket.id}")
+
+
 def _escalate_ticket(ticket, db):
     import models
 
@@ -78,11 +124,12 @@ class TicketEscalationService:
         try:
             open_tickets = db.query(models.SupportTicket).filter(
                 models.SupportTicket.status.in_(["open", "in_progress"]),
-                models.SupportTicket.escalated != "true",
             ).all()
             for t in open_tickets:
-                if t.sla_status in ("at_risk", "breached"):
+                if t.sla_status == "breached" and t.escalated != "true":
                     _escalate_ticket(t, db)
+                elif t.sla_status == "at_risk" and t.sla_nudged != "true":
+                    _nudge_engineer(t, db)
         finally:
             db.close()
 

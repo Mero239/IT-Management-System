@@ -115,6 +115,7 @@ class SupportTicket(Base):
     csat_comment = Column(Text, nullable=True)                # optional free-text feedback alongside the rating
     csat_submitted_at = Column(DateTime(timezone=True), nullable=True)
     escalated = Column(String(5), default="false")            # "true" once auto-escalated for this SLA breach risk
+    sla_nudged = Column(String(5), default="false")           # "true" once the assigned engineer got an early at-risk reminder
     recurring_template_id = Column(Integer, ForeignKey("recurring_ticket_templates.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import * as XLSX from 'xlsx'
+import { QRCodeSVG } from 'qrcode.react'
 import { assetsApi, departmentsApi } from '../api/client'
 import Modal from '../components/Modal'
 import Header from '../components/Header'
@@ -34,6 +35,7 @@ export default function Assets() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [qrAsset, setQrAsset] = useState(null)
 
   const load = () => {
     setLoading(true)
@@ -168,6 +170,7 @@ export default function Assets() {
                 <td className="table-td text-slate-500">{a.cost_center || '—'}</td>
                 <td className="table-td">
                   <div className="flex gap-2">
+                    <button onClick={() => setQrAsset(a)} className="btn-secondary" title={t('assets.qrTooltip')}>🔗 QR</button>
                     <button onClick={() => openEdit(a)} className="btn-success">{t('common.edit')}</button>
                     <button onClick={() => handleDelete(a.id)} className="btn-danger">{t('common.delete')}</button>
                   </div>
@@ -255,6 +258,32 @@ export default function Assets() {
           </button>
           <button onClick={() => setModal(false)} className="btn-secondary">{t('common.cancel')}</button>
         </div>
+      </Modal>
+
+      <Modal isOpen={!!qrAsset} onClose={() => setQrAsset(null)} title={qrAsset ? `${t('assets.qrTitle')} — ${qrAsset.name}` : ''} size="sm">
+        {qrAsset && (() => {
+          const qrUrl = `${window.location.origin}/new-ticket?asset=${qrAsset.id}`
+          const downloadQR = () => {
+            const svg = document.getElementById('asset-qr-svg')
+            if (!svg) return
+            const data = new XMLSerializer().serializeToString(svg)
+            const blob = new Blob([data], { type: 'image/svg+xml' })
+            const a = document.createElement('a')
+            a.href = URL.createObjectURL(blob)
+            a.download = `qr-${qrAsset.name.replace(/\s+/g, '-')}.svg`
+            a.click()
+          }
+          return (
+            <div className="flex flex-col items-center gap-4 py-2">
+              <p className="text-sm text-slate-500 text-center">{t('assets.qrHint')}</p>
+              <div className="p-4 bg-white border-2 border-yellow-100 rounded-2xl">
+                <QRCodeSVG id="asset-qr-svg" value={qrUrl} size={180} level="H" fgColor="#713f12" bgColor="#ffffff" includeMargin />
+              </div>
+              <p className="font-mono text-xs text-yellow-700 bg-yellow-50 px-3 py-2 rounded-lg break-all">{qrUrl}</p>
+              <button onClick={downloadQR} className="btn-secondary w-full justify-center">⬇️ {t('assets.qrDownload')}</button>
+            </div>
+          )
+        })()}
       </Modal>
     </div>
   )

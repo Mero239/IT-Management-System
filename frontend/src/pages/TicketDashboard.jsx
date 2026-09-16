@@ -57,6 +57,9 @@ export default function TicketDashboard() {
     .filter(tk => ['open', 'in_progress'].includes(tk.status) && ['at_risk', 'breached'].includes(tk.sla_status))
     .slice(0, 8)
   const recent = tickets.slice(0, 8)
+  const leaderboard = Object.entries(data.engineer_stats || {})
+    .map(([name, s]) => ({ name, ...s }))
+    .sort((a, b) => b.count - a.count)
 
   return (
     <div className="space-y-6">
@@ -85,6 +88,37 @@ export default function TicketDashboard() {
         <MiniBreakdown title={t('ticketReports.breakdown.byPriority')} data={data.by_priority} total={data.total} labelFor={k => priorityLabel[k] || k} noDataLabel={t('ticketReports.breakdown.noData')} />
         <MiniBreakdown title={t('ticketReports.breakdown.byCategory')} data={data.by_category} total={data.total} labelFor={k => categoryLabel[k] || k} noDataLabel={t('ticketReports.breakdown.noData')} />
         <MiniBreakdown title={t('ticketReports.breakdown.bySla')} data={data.by_sla_status} total={data.total} labelFor={k => slaLabel[k] || k} noDataLabel={t('ticketReports.breakdown.noData')} />
+      </div>
+
+      {/* Engineer leaderboard */}
+      <div className="card !p-0 overflow-hidden">
+        <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
+          <h3 className="font-bold text-slate-700 text-sm">{t('ticketDashboard.leaderboard')}</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50/50 border-b border-slate-100">
+              <tr>
+                {[
+                  t('ticketDashboard.leaderboard.engineer'), t('ticketDashboard.leaderboard.tickets'),
+                  t('ticketDashboard.leaderboard.avgResolution'), t('ticketDashboard.leaderboard.avgRating'),
+                ].map(h => <th key={h} className="table-th">{h}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {leaderboard.map((e, i) => (
+                <tr key={e.name} className="hover:bg-slate-50/50">
+                  <td className="table-td font-medium text-slate-800">
+                    {i === 0 && '🥇 '}{i === 1 && '🥈 '}{i === 2 && '🥉 '}{e.name}
+                  </td>
+                  <td className="table-td text-slate-600">{e.count}</td>
+                  <td className="table-td text-slate-500">{e.avg_resolution_hours ?? '—'}</td>
+                  <td className="table-td text-slate-500">{e.avg_csat_rating ? `⭐ ${e.avg_csat_rating}` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

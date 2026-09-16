@@ -9,6 +9,7 @@ from services.telegram_bot import bot as telegram_bot, load_config as tg_load_co
 from services.monitor import monitor as monitor_service, load_config as mon_load_config
 from services.ticket_escalation import service as escalation_service
 from services.recurring_tickets import service as recurring_service
+from services.ticket_autoclose import service as autoclose_service
 
 Base.metadata.create_all(bind=engine)
 
@@ -30,12 +31,14 @@ async def lifespan(app: FastAPI):
     # These two need no external config — always on.
     escalation_service.start()
     recurring_service.start()
+    autoclose_service.start()
     yield
     email_agent.stop()
     telegram_bot.stop()
     monitor_service.stop()
     escalation_service.stop()
     recurring_service.stop()
+    autoclose_service.stop()
 
 
 app = FastAPI(

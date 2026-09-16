@@ -10,6 +10,11 @@ const NAV_ITEMS = [
   { to: '/assets', key: 'nav.assets', icon: '🖥️' },
   { to: '/requests', key: 'nav.requests', icon: '📋' },
   {
+    // Everything ticket-related lives here as one self-contained module — the
+    // day-to-day items any engineer uses, plus (marked adminOnly) the pages
+    // that configure how the ticketing system itself behaves. adminOnly
+    // children are filtered out for non-admins in NavGroup below, same as
+    // the standalone admin section used to gate them.
     key: 'nav.ticketingSystem', icon: '🎫', children: [
       { to: '/ticket-dashboard',  key: 'nav.ticketDashboard',   icon: '📊' },
       { to: '/tickets',           key: 'nav.tickets',           icon: '🎫' },
@@ -23,6 +28,12 @@ const NAV_ITEMS = [
       { to: '/ticket-reports',    key: 'nav.ticketReports',     icon: '📊' },
       { to: '/canned-responses',  key: 'nav.cannedResponses',   icon: '💬' },
       { to: '/support-agreement', key: 'nav.supportAgreement',  icon: '🤝' },
+      { to: '/admin/dashboard',        key: 'nav.adminDashboard',        icon: '📈', adminOnly: true },
+      { to: '/admin/ticket-log',       key: 'nav.adminTicketLog',        icon: '📋', adminOnly: true },
+      { to: '/admin/ticket-routing',   key: 'nav.adminTicketRouting',    icon: '🧭', adminOnly: true },
+      { to: '/admin/recurring-tickets', key: 'nav.adminRecurringTickets', icon: '🔁', adminOnly: true },
+      { to: '/admin/channels',         key: 'nav.adminChannels',         icon: '📱', adminOnly: true },
+      { to: '/email-agent',            key: 'nav.emailAgent',            icon: '🤖', adminOnly: true },
     ],
   },
   { to: '/employees',          key: 'nav.employees',       icon: '👥' },
@@ -35,29 +46,25 @@ const NAV_ITEMS = [
   { to: '/import', key: 'nav.import', icon: '📥' },
   { to: '/swreport', key: 'nav.swreport', icon: '📊' },
   { to: '/it-team', key: 'nav.itTeam', icon: '👥' },
-  { to: '/email-agent', key: 'nav.emailAgent', icon: '🤖' },
 ]
 
 const ADMIN_GROUP = {
   key: 'sidebar.adminSection', icon: '🛡️', children: [
-    { to: '/admin/dashboard',   key: 'nav.adminDashboard',   icon: '📊' },
-    { to: '/admin/ticket-log',  key: 'nav.adminTicketLog',   icon: '📋' },
     { to: '/admin/reports',     key: 'nav.adminReports',     icon: '📈' },
     { to: '/admin/engineers',   key: 'nav.adminEngineers',   icon: '🛡️' },
-    { to: '/admin/channels',    key: 'nav.adminChannels',    icon: '📱' },
-    { to: '/admin/ticket-routing', key: 'nav.adminTicketRouting', icon: '🧭' },
-    { to: '/admin/recurring-tickets', key: 'nav.adminRecurringTickets', icon: '🔁' },
     { to: '/admin/monitor',     key: 'nav.adminMonitor',     icon: '📡' },
   ],
 }
 
-function NavGroup({ item, isOpen, isActive, onToggle, t, collapsed }) {
+function NavGroup({ item, isOpen, isActive, onToggle, t, collapsed, isAdmin }) {
   const navigate = useNavigate()
+  const visibleChildren = item.children.filter((c) => !c.adminOnly || isAdmin)
+  const firstAdminIdx = visibleChildren.findIndex((c) => c.adminOnly)
 
   if (collapsed) {
     return (
       <button
-        onClick={() => navigate(item.children[0].to)}
+        onClick={() => navigate(visibleChildren[0].to)}
         title={t(item.key)}
         className={`sidebar-link w-full flex items-center justify-center !text-white ${isActive ? '!bg-sky-500/40' : ''}`}
       >
@@ -82,15 +89,21 @@ function NavGroup({ item, isOpen, isActive, onToggle, t, collapsed }) {
       </button>
       {isOpen && (
         <div className="ms-2 p-1.5 my-1 rounded-xl !bg-sky-100 shadow-inner space-y-1">
-          {item.children.map((child) => (
-            <NavLink
-              key={child.to}
-              to={child.to}
-              className={({ isActive }) => `sidebar-link !text-slate-700 ${isActive ? '!bg-blue-600 !text-white font-bold shadow' : 'hover:!bg-sky-200'}`}
-            >
-              <span className="text-base">{child.icon}</span>
-              <span>{t(child.key)}</span>
-            </NavLink>
+          {visibleChildren.map((child, i) => (
+            <div key={child.to}>
+              {i === firstAdminIdx && (
+                <p className="px-3 pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                  {t('sidebar.adminSection')}
+                </p>
+              )}
+              <NavLink
+                to={child.to}
+                className={({ isActive }) => `sidebar-link !text-slate-700 ${isActive ? '!bg-blue-600 !text-white font-bold shadow' : 'hover:!bg-sky-200'}`}
+              >
+                <span className="text-base">{child.icon}</span>
+                <span>{t(child.key)}</span>
+              </NavLink>
+            </div>
           ))}
         </div>
       )}
@@ -116,11 +129,15 @@ export default function Sidebar() {
     setCollapsed(next)
   }
 
+  const isAdmin = engineer?.permission_level === 'admin'
+
   // Users restricted to access_scope 'tickets_only' see nothing but the
   // ticketing system's own channels — flattened, since it's their entire menu.
   const isTicketsOnly = engineer?.access_scope === 'tickets_only'
   const ticketingGroup = NAV_ITEMS.find(i => i.key === 'nav.ticketingSystem')
-  const visibleNavItems = isTicketsOnly && ticketingGroup ? ticketingGroup.children : NAV_ITEMS
+  const visibleNavItems = isTicketsOnly && ticketingGroup
+    ? ticketingGroup.children.filter((c) => !c.adminOnly || isAdmin)
+    : NAV_ITEMS
 
   const allGroups = [...NAV_ITEMS.filter(i => i.children), ADMIN_GROUP]
 
@@ -305,6 +322,7 @@ export default function Sidebar() {
               isOpen={openGroups.has(item.key)}
               isActive={groupHasActiveChild(item)}
               onToggle={() => toggleGroup(item.key)}
+              isAdmin={isAdmin}
             />
           ) : (
             <NavLink
@@ -329,6 +347,7 @@ export default function Sidebar() {
             isOpen={openGroups.has(ADMIN_GROUP.key)}
             isActive={groupHasActiveChild(ADMIN_GROUP)}
             onToggle={() => toggleGroup(ADMIN_GROUP.key)}
+            isAdmin={isAdmin}
           />
         )}
       </nav>

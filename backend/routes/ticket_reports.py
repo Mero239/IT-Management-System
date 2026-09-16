@@ -79,6 +79,24 @@ def get_report_data(
     avg_csat_rating = round(sum(t.csat_rating for t in rated) / len(rated), 2) if rated else None
     by_csat_rating = Counter(t.csat_rating for t in rated)
 
+    # Per-engineer leaderboard: volume, avg resolution time, avg CSAT
+    engineer_stats = {}
+    for t in tickets:
+        name = t.assigned_to
+        if not name:
+            continue
+        s = engineer_stats.setdefault(name, {"count": 0, "_hours": [], "_ratings": []})
+        s["count"] += 1
+        if t.status in ("resolved", "closed") and t.updated_at:
+            s["_hours"].append((t.updated_at - t.created_at).total_seconds() / 3600)
+        if t.csat_rating:
+            s["_ratings"].append(t.csat_rating)
+    for name, s in engineer_stats.items():
+        s["avg_resolution_hours"] = round(sum(s["_hours"]) / len(s["_hours"]), 1) if s["_hours"] else None
+        s["avg_csat_rating"] = round(sum(s["_ratings"]) / len(s["_ratings"]), 2) if s["_ratings"] else None
+        s["csat_count"] = len(s["_ratings"])
+        del s["_hours"], s["_ratings"]
+
     return {
         "total": len(tickets),
         "by_status": dict(by_status),
@@ -87,6 +105,7 @@ def get_report_data(
         "by_branch": dict(by_branch),
         "by_organization": dict(by_org),
         "by_engineer": dict(by_engineer),
+        "engineer_stats": engineer_stats,
         "by_source": dict(by_source),
         "by_sla_status": dict(by_sla),
         "avg_resolution_hours": avg_resolution_hours,

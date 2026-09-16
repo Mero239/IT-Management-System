@@ -61,7 +61,7 @@ const MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024 // 2MB
 const empty = {
   requester_name: '', requester_email: '', department_id: '',
   organization_id: '', branch_id: '',
-  title: '', description: '', category: '', priority: 'medium',
+  title: '', description: '', category: '', priority: 'medium', asset_id: '',
 }
 
 /* ── Select with inline "add new" ─────────────── */
@@ -151,6 +151,7 @@ export default function NewTicket() {
   const [kbSuggestions, setKbSuggestions] = useState([])
   const [kbLoading, setKbLoading]     = useState(false)
   const [kbDismissed, setKbDismissed] = useState(false)
+  const [prefillAsset, setPrefillAsset] = useState(null) // { id, name } — from a device's QR code
   const topRef                  = useRef()
   const lookupTimer             = useRef()
 
@@ -159,6 +160,21 @@ export default function NewTicket() {
     organizationsApi.list().then(r => setOrgs(r.data)).catch(() => {})
     branchesApi.list().then(r => setBranches(r.data)).catch(() => {})
     getWaConfig().then(cfg => { if (cfg?.whatsapp_phone) setWaConfig(cfg) })
+
+    // A device's QR code links here with ?asset=<id>&category=<slug> pre-filled
+    const params = new URLSearchParams(window.location.search)
+    const assetId = params.get('asset')
+    const category = params.get('category')
+    if (category && CATEGORIES.some(c => c.value === category)) {
+      setForm(f => ({ ...f, category }))
+    }
+    if (assetId) {
+      setForm(f => ({ ...f, asset_id: assetId }))
+      fetch(`${API_BASE}/assets/${assetId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(a => { if (a) setPrefillAsset({ id: a.id, name: a.name }) })
+        .catch(() => {})
+    }
   }, [])
 
   /* KB self-service suggestions while typing the problem title (step 2) */
@@ -268,6 +284,7 @@ export default function NewTicket() {
           organization_id: form.organization_id || null,
           branch_id: form.branch_id || null,
           category: form.category || null,
+          asset_id: form.asset_id ? Number(form.asset_id) : null,
           status: 'open',
         }),
       })
@@ -344,13 +361,19 @@ export default function NewTicket() {
         </div>
       </div>
 
-      <div className="p-5 pb-safe">
+      <div className="p-5 pb-safe space-y-2.5">
         <button
           onClick={reset}
           className="w-full py-4 rounded-2xl bg-white text-yellow-700 font-bold text-lg shadow-lg active:scale-95 transition-transform"
         >
           تقديم طلب جديد
         </button>
+        <a
+          href="/track-ticket"
+          className="block w-full text-center py-3 rounded-2xl bg-white/10 text-white font-semibold active:bg-white/20 transition-colors"
+        >
+          🔍 تتبّع حالة هذا الطلب لاحقًا
+        </a>
       </div>
     </div>
   )
@@ -530,6 +553,13 @@ export default function NewTicket() {
               <h2 className="text-xl font-black text-slate-800">ما هي المشكلة؟</h2>
               <p className="text-slate-400 text-sm">اشرح المشكلة بوضوح لنتمكن من مساعدتك بسرعة</p>
             </div>
+
+            {prefillAsset && (
+              <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-100 rounded-2xl px-4 py-2.5 text-sm text-yellow-800">
+                <span>🖥️</span>
+                <span>بخصوص الجهاز: <strong>{prefillAsset.name}</strong></span>
+              </div>
+            )}
 
             <Input label="عنوان المشكلة" required error={errors.title}
               hint="جملة قصيرة تصف المشكلة">

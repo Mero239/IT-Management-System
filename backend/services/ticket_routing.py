@@ -3,6 +3,7 @@ import logging
 import random
 from typing import Optional
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from paths import data_path
 import models
 
@@ -38,9 +39,32 @@ def _gemini_key() -> str:
         return ""
 
 
-def _pick_engineer(rule: "models.TicketRoutingRule") -> Optional[str]:
+def _least_busy(names: list, db: Session) -> Optional[str]:
+    """Pick whichever of these engineers currently has the fewest open/in-progress
+    tickets, so a shared rule spreads work by actual load instead of pure chance.
+    Ties (including the common case of everyone at 0) are broken randomly."""
+    if not names:
+        return None
+    if len(names) == 1:
+        return names[0]
+    counts = dict(
+        db.query(models.SupportTicket.assigned_to, func.count(models.SupportTicket.id))
+        .filter(
+            models.SupportTicket.assigned_to.in_(names),
+            models.SupportTicket.status.in_(["open", "in_progress"]),
+        )
+        .group_by(models.SupportTicket.assigned_to)
+        .all()
+    )
+    load = {n: counts.get(n, 0) for n in names}
+    min_load = min(load.values())
+    candidates = [n for n, c in load.items() if c == min_load]
+    return random.choice(candidates)
+
+
+def _pick_engineer(rule: "models.TicketRoutingRule", db: Session) -> Optional[str]:
     engineers = [e.strip() for e in rule.engineer_name.split(",") if e.strip()]
-    return random.choice(engineers) if engineers else None
+    return _least_busy(engineers, db) if engineers else None
 
 
 def _keyword_match(text: str, rules: list) -> Optional["models.TicketRoutingRule"]:
@@ -86,11 +110,12 @@ def find_routed_engineer(title: str, description: str, db: Session) -> Optional[
     breaks because of this.
 
     A rule's engineer_name may list several engineers separated by commas
-    (e.g. two people sharing responsibility for network/cameras) — one of
-    them is picked at random so tickets get spread across the team.
+    (e.g. two people sharing responsibility for network/cameras) — whoever
+    currently has the fewest open tickets is picked, so work stays balanced
+    across the team instead of split by pure chance.
     """
     matched = _match_rule(title, description, db)
-    return _pick_engineer(matched) if matched else None
+    return _pick_engineer(matched, db) if matched else None
 
 
 def _match_rule(title: str, description: str, db: Session) -> Optional["models.TicketRoutingRule"]:
@@ -130,4 +155,4 @@ def find_routing_match(title: str, description: str, db: Session) -> Optional[di
     ]
     if not engineers:
         return None
-    return {"assigned_to": random.choice(names), "engineers": engineers}
+    return {"assigned_to": _least_busy(names, db), "engineers": engineers}

@@ -26,6 +26,7 @@ import EmailAgent from './pages/EmailAgent'
 import ITTeam from './pages/ITTeam'
 import NewTicket from './pages/NewTicket'
 import RateTicket from './pages/RateTicket'
+import TrackTicket from './pages/TrackTicket'
 import CannedResponses from './pages/CannedResponses'
 import RecurringTickets from './pages/RecurringTickets'
 import Login from './pages/Login'
@@ -119,6 +120,7 @@ export default function App() {
               <Route path="/new-ticket"       element={<NewTicket />} />
               <Route path="/support-agreement" element={<SupportAgreement />} />
               <Route path="/rate-ticket/:id"  element={<RateTicket />} />
+              <Route path="/track-ticket"     element={<TrackTicket />} />
               <Route path="/login"            element={<LoginRedirect />} />
               <Route path="/forgot-password"  element={<ForgotPassword />} />
               <Route path="/reset-password"   element={<ResetPassword />} />

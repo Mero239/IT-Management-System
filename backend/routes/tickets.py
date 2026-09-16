@@ -6,7 +6,7 @@ from typing import List, Optional
 import threading
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel
 from database import get_db
 from paths import data_path
@@ -47,6 +47,46 @@ def _looks_like_real_recipient(email_str: Optional[str]) -> bool:
         return False
     e = email_str.strip().lower()
     return not any(m in e for m in _SYSTEM_EMAIL_MARKERS)
+
+
+_DUPLICATE_WINDOW_HOURS = 6
+_STOPWORDS = {
+    "the", "and", "for", "with", "from", "this", "that", "have", "has",
+    "في", "من", "على", "إلى", "الى", "عن", "مع", "هذا", "هذه", "لا", "لم",
+    "ولا", "التي", "الذي", "عند", "بعد", "قبل", "مشكلة", "problem", "issue",
+}
+
+
+def _title_tokens(title: str) -> set:
+    words = "".join(ch if ch.isalnum() else " " for ch in (title or "").lower()).split()
+    return {w for w in words if len(w) >= 3 and w not in _STOPWORDS}
+
+
+def _find_possible_duplicate(title: str, category: Optional[str], db: Session):
+    """Lightweight, AI-free duplicate check: flag a recent (last few hours) open
+    ticket with heavy keyword overlap in the title — e.g. five people separately
+    reporting "internet down" — so engineers notice and can merge/link them
+    instead of duplicating work. Deliberately not AI-based, to stay reliable
+    even when the routing AI's quota is exhausted."""
+    tokens = _title_tokens(title)
+    if len(tokens) < 2:
+        return None
+    since = datetime.now(timezone.utc) - timedelta(hours=_DUPLICATE_WINDOW_HOURS)
+    q = db.query(models.SupportTicket).filter(
+        models.SupportTicket.status.in_(["open", "in_progress"]),
+        models.SupportTicket.created_at >= since,
+    )
+    if category:
+        q = q.filter(models.SupportTicket.category == category)
+    for candidate in q.order_by(models.SupportTicket.id.desc()).limit(50):
+        other_tokens = _title_tokens(candidate.title)
+        if len(other_tokens) < 2:
+            continue
+        shared = tokens & other_tokens
+        overlap = len(shared) / min(len(tokens), len(other_tokens))
+        if len(shared) >= 2 and overlap >= 0.6:
+            return candidate
+    return None
 
 
 def _add_activity(db: Session, ticket_id: int, content: str):
@@ -277,6 +317,31 @@ def admin_ticket_log(
     }
 
 
+@router.get("/track")
+def track_ticket(ticket_id: int, email: str, db: Session = Depends(get_db)):
+    # Intentionally public (no login) — this is how a requester who submitted a
+    # ticket anonymously checks on it. Requiring the exact requester_email match
+    # (not just the ticket id) keeps it from being a plain ID-enumeration lookup.
+    obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
+    if not obj or not obj.requester_email or obj.requester_email.strip().lower() != email.strip().lower():
+        raise HTTPException(status_code=404, detail="لم يتم العثور على تذكرة بهذه البيانات")
+    return {
+        "id": obj.id,
+        "title": obj.title,
+        "description": obj.description,
+        "status": obj.status,
+        "priority": obj.priority,
+        "category": obj.category,
+        "assigned_to": obj.assigned_to,
+        "resolution": obj.resolution,
+        "created_at": obj.created_at,
+        "updated_at": obj.updated_at,
+        "sla_due_at": obj.sla_due_at,
+        "sla_status": obj.sla_status,
+        "csat_rating": obj.csat_rating,
+    }
+
+
 @router.get("/", response_model=List[schemas.SupportTicketOut])
 def list_tickets(
     status: Optional[str] = None,
@@ -324,6 +389,7 @@ def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
 def create_ticket(ticket: schemas.SupportTicketCreate, db: Session = Depends(get_db)):
     if ticket.category and ticket.category not in models.TICKET_CATEGORIES:
         raise HTTPException(status_code=400, detail=f"category must be one of {models.TICKET_CATEGORIES}")
+    duplicate_of = _find_possible_duplicate(ticket.title, ticket.category, db)
     obj = models.SupportTicket(**ticket.model_dump())
     routing_match = None
     if not obj.assigned_to:
@@ -338,6 +404,8 @@ def create_ticket(ticket: schemas.SupportTicketCreate, db: Session = Depends(get
     _add_activity(db, obj.id, f"تم إنشاء التذكرة ({source_label})")
     if obj.assigned_to and not ticket.assigned_to:
         _add_activity(db, obj.id, f"تم التوجيه التلقائي إلى {obj.assigned_to} بناءً على محتوى التذكرة")
+    if duplicate_of:
+        _add_activity(db, obj.id, f"🔁 قد تكون هذه التذكرة مرتبطة بتذكرة سابقة مشابهة: #{duplicate_of.id} \"{duplicate_of.title}\" — يُنصح بالمراجعة قبل البدء")
 
     # Notify every engineer on the matched routing rule — not just whichever one
     # ended up as assigned_to — so a rule shared by several people (e.g. laptop
