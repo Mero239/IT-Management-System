@@ -12,7 +12,7 @@ from database import get_db
 from paths import data_path
 from routes.auth import get_current_engineer
 import models, schemas
-from services.ticket_routing import find_routed_engineer
+from services.ticket_routing import find_routed_engineer, find_routing_match
 
 ATTACHMENTS_DIR = data_path("ticket_attachments")
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
@@ -325,10 +325,11 @@ def create_ticket(ticket: schemas.SupportTicketCreate, db: Session = Depends(get
     if ticket.category and ticket.category not in models.TICKET_CATEGORIES:
         raise HTTPException(status_code=400, detail=f"category must be one of {models.TICKET_CATEGORIES}")
     obj = models.SupportTicket(**ticket.model_dump())
+    routing_match = None
     if not obj.assigned_to:
-        routed = find_routed_engineer(obj.title, obj.description, db)
-        if routed:
-            obj.assigned_to = routed
+        routing_match = find_routing_match(obj.title, obj.description, db)
+        if routing_match:
+            obj.assigned_to = routing_match["assigned_to"]
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -337,6 +338,40 @@ def create_ticket(ticket: schemas.SupportTicketCreate, db: Session = Depends(get
     _add_activity(db, obj.id, f"تم إنشاء التذكرة ({source_label})")
     if obj.assigned_to and not ticket.assigned_to:
         _add_activity(db, obj.id, f"تم التوجيه التلقائي إلى {obj.assigned_to} بناءً على محتوى التذكرة")
+
+    # Notify every engineer on the matched routing rule — not just whichever one
+    # ended up as assigned_to — so a rule shared by several people (e.g. laptop
+    # purchases going to both Amr Issa and Mahmoud Farag) reaches all of them.
+    if routing_match and len(routing_match["engineers"]) > 1:
+        ticket_id, ticket_title, requester = obj.id, obj.title, obj.requester_name or ""
+
+        def _notify_all(engineers):
+            from services.email_notifier import send_assignment_email
+            from database import SessionLocal
+            session = SessionLocal()
+            try:
+                for eng in engineers:
+                    notif = models.Notification(
+                        engineer_name=eng["name"],
+                        engineer_email=eng["email"],
+                        ticket_id=ticket_id,
+                        ticket_title=ticket_title,
+                        message=f"تذكرة جديدة #{ticket_id} ضمن مسؤوليتك المشتركة: {ticket_title}",
+                        is_read="false",
+                        email_sent="false",
+                    )
+                    session.add(notif)
+                    session.commit()
+                    if eng["email"]:
+                        sent = send_assignment_email(eng["name"], eng["email"], ticket_id, ticket_title, requester)
+                        if sent:
+                            notif.email_sent = "true"
+                            session.commit()
+            finally:
+                session.close()
+
+        threading.Thread(target=_notify_all, args=(routing_match["engineers"],), daemon=True).start()
+
     return obj
 
 
@@ -457,7 +492,7 @@ def update_ticket_status(
         _add_activity(db, ticket_id, f"تم تسجيل خطوات الحل ({len(steps)} خطوة){': ' + summary if summary else ''}")
 
     if status != old_status:
-        origin = request.headers.get("origin", "http://localhost:5173")
+        origin = request.headers.get("origin", "http://localhost:23309")
         req_name, req_email, req_status, req_res = obj.requester_name, obj.requester_email, status, obj.resolution
         tg_chat_id, tg_source, tg_title = obj.telegram_chat_id, obj.source, obj.title
 

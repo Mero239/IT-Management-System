@@ -171,7 +171,7 @@ def forgot_password(data: ForgotPasswordRequest, request: Request, db: Session =
         db.add(rec)
         db.commit()
 
-        origin = request.headers.get("origin", "http://localhost:5173")
+        origin = request.headers.get("origin", "http://localhost:23309")
         reset_link = f"{origin}/reset-password?token={token_val}"
 
         def _send_link():

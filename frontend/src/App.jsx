@@ -17,6 +17,7 @@ import LicensedSoftware from './pages/LicensedSoftware'
 import SupportAgreement from './pages/SupportAgreement'
 import SLA from './pages/SLA'
 import TicketReports from './pages/TicketReports'
+import TicketDashboard from './pages/TicketDashboard'
 import TicketRouting from './pages/TicketRouting'
 import Reports from './pages/Reports'
 import Import from './pages/Import'
@@ -68,7 +69,7 @@ function RequireAuth({ children }) {
 const TICKETS_ONLY_ALLOWED_PREFIXES = [
   '/tickets', '/sla', '/inbox', '/telegram-tickets', '/whatsapp-tickets',
   '/email-tickets', '/engineer-dashboard', '/knowledge-base', '/settings',
-  '/ticket-reports', '/canned-responses',
+  '/ticket-reports', '/canned-responses', '/ticket-dashboard',
 ]
 
 function TicketsOnlyGuard({ children }) {
@@ -140,6 +141,7 @@ export default function App() {
                       <Route path="/organizations"       element={<OrganizationsBranches />} />
                       <Route path="/licensed-software"   element={<LicensedSoftware />} />
                       <Route path="/sla"                 element={<SLA />} />
+                      <Route path="/ticket-dashboard"     element={<TicketDashboard />} />
                       <Route path="/ticket-reports"      element={<TicketReports />} />
                       <Route path="/reports"             element={<Reports />} />
                       <Route path="/import"              element={<Import />} />

@@ -89,6 +89,11 @@ def find_routed_engineer(title: str, description: str, db: Session) -> Optional[
     (e.g. two people sharing responsibility for network/cameras) — one of
     them is picked at random so tickets get spread across the team.
     """
+    matched = _match_rule(title, description, db)
+    return _pick_engineer(matched) if matched else None
+
+
+def _match_rule(title: str, description: str, db: Session) -> Optional["models.TicketRoutingRule"]:
     text = f"{title or ''} {description or ''}".strip()
     if not text:
         return None
@@ -105,4 +110,24 @@ def find_routed_engineer(title: str, description: str, db: Session) -> Optional[
     matched = _ai_match(title, description, rules)
     if matched is None:
         matched = _keyword_match(text.lower(), rules)
-    return _pick_engineer(matched) if matched else None
+    return matched
+
+
+def find_routing_match(title: str, description: str, db: Session) -> Optional[dict]:
+    """Like find_routed_engineer, but also returns every engineer listed on the
+    matched rule (not just the one randomly picked as the ticket's owner) —
+    used so a rule shared by several engineers (e.g. laptop purchases going to
+    both Amr Issa and Mahmoud Farag) can notify all of them, not only whoever
+    ends up as assigned_to."""
+    rule = _match_rule(title, description, db)
+    if not rule:
+        return None
+    names = [n.strip() for n in rule.engineer_name.split(",") if n.strip()]
+    emails = [e.strip() for e in (rule.engineer_email or "").split(",") if e.strip()]
+    engineers = [
+        {"name": n, "email": emails[i] if i < len(emails) else ""}
+        for i, n in enumerate(names)
+    ]
+    if not engineers:
+        return None
+    return {"assigned_to": random.choice(names), "engineers": engineers}

@@ -16,13 +16,13 @@ const emptyFilters = {
   organization_id: '', branch_id: '', department_id: '', assigned_to: '', source: '',
 }
 
-function BreakdownCard({ title, data, total, labelFor }) {
+function BreakdownCard({ title, data, total, labelFor, noDataLabel }) {
   const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1])
   return (
     <div className="card !p-4 space-y-2.5">
       <h3 className="font-bold text-slate-700 text-sm">{title}</h3>
       {entries.length === 0 ? (
-        <p className="text-xs text-slate-400 py-4 text-center">لا توجد بيانات</p>
+        <p className="text-xs text-slate-400 py-4 text-center">{noDataLabel}</p>
       ) : entries.map(([key, count]) => (
         <div key={key} className="flex items-center gap-3 text-sm">
           <span className="text-slate-500 w-28 shrink-0 truncate">{labelFor ? labelFor(key) : key}</span>
@@ -90,27 +90,42 @@ export default function TicketReports() {
   }
 
   const handleDeletePreset = async (id) => {
-    if (!confirm('حذف هذا التقرير المحفوظ؟')) return
+    if (!confirm(t('ticketReports.deleteSavedConfirm'))) return
     await ticketReportsApi.deletePreset(id)
     loadPresets()
   }
 
+  const priorityLabel = { low: t('priority.low'), medium: t('priority.medium'), high: t('priority.high'), critical: t('priority.critical') }
+  const statusLabel = { open: t('status.open'), in_progress: t('status.in_progress'), resolved: t('status.resolved'), closed: t('status.closed') }
+  const categoryLabel = {
+    network: t('category.network'), laptop_maintenance: t('category.laptop_maintenance'), internet: t('category.internet'),
+    printing: t('category.printing'), other: t('category.other'), uncategorized: t('ticketReports.category.uncategorized'),
+  }
+  const slaLabel = {
+    on_time: t('ticketReports.sla.onTime'), at_risk: t('ticketReports.sla.atRisk'),
+    breached: t('ticketReports.sla.breached'), met: t('ticketReports.sla.met'),
+  }
+  const sourceLabel = {
+    manual: t('ticketReports.source.manual'), email: t('ticketReports.source.email'),
+    telegram: t('ticketReports.source.telegram'), whatsapp: t('ticketReports.source.whatsapp'),
+  }
+
   const exportExcel = () => {
     if (!data?.tickets?.length) return
-    const rows = data.tickets.map((t, i) => ({
-      '#': i + 1,
-      'العنوان': t.title,
-      'الحالة': t.status,
-      'الأولوية': t.priority,
-      'نوع المشكلة': t.category || '',
-      'المؤسسة': t.organization?.name || '',
-      'الفرع': t.branch?.name || '',
-      'القسم': t.department?.name || '',
-      'المسؤول': t.assigned_to || '',
-      'المصدر': t.source || '',
-      'تاريخ الإنشاء': t.created_at ? new Date(t.created_at).toLocaleDateString() : '',
-      'موعد الاستحقاق': t.sla_due_at ? new Date(t.sla_due_at).toLocaleDateString() : '',
-      'حالة SLA': t.sla_status || '',
+    const rows = data.tickets.map((tk, i) => ({
+      [t('ticketReports.col.index')]: i + 1,
+      [t('tickets.col.title')]: tk.title,
+      [t('tickets.col.status')]: statusLabel[tk.status] || tk.status,
+      [t('tickets.col.priority')]: priorityLabel[tk.priority] || tk.priority,
+      [t('ticketReports.col.type')]: tk.category ? categoryLabel[tk.category] : '',
+      [t('ticketReports.col.organization')]: tk.organization?.name || '',
+      [t('ticketReports.col.branch')]: tk.branch?.name || '',
+      [t('ticketReports.col.department')]: tk.department?.name || '',
+      [t('tickets.col.assignedTo')]: tk.assigned_to || '',
+      [t('ticketReports.col.source')]: sourceLabel[tk.source] || tk.source || '',
+      [t('tickets.col.createdAt')]: tk.created_at ? new Date(tk.created_at).toLocaleDateString() : '',
+      [t('tickets.col.dueDate')]: tk.sla_due_at ? new Date(tk.sla_due_at).toLocaleDateString() : '',
+      [t('ticketReports.col.slaStatus')]: tk.sla_status ? slaLabel[tk.sla_status] : '',
     }))
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
@@ -118,21 +133,21 @@ export default function TicketReports() {
     XLSX.writeFile(wb, `ticket_report_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
-  const ratedTickets = (data?.tickets || []).filter(t => t.csat_rating).sort((a, b) =>
+  const ratedTickets = (data?.tickets || []).filter(tk => tk.csat_rating).sort((a, b) =>
     new Date(b.csat_submitted_at || 0) - new Date(a.csat_submitted_at || 0))
 
   const exportRatingsExcel = () => {
     if (!ratedTickets.length) return
-    const rows = ratedTickets.map((t, i) => ({
-      '#': i + 1,
-      'رقم التذكرة': t.id,
-      'عنوان المشكلة': t.title,
-      'التقييم (من 5)': t.csat_rating,
-      'تعليق مقدّم الطلب': t.csat_comment || '',
-      'اسم مقدّم الطلب': t.requester_name || '',
-      'بريد مقدّم الطلب': t.requester_email || '',
-      'من حل المشكلة': t.assigned_to || '',
-      'تاريخ التقييم': t.csat_submitted_at ? new Date(t.csat_submitted_at).toLocaleString() : '',
+    const rows = ratedTickets.map((tk, i) => ({
+      [t('ticketReports.col.index')]: i + 1,
+      [t('ticketReports.csat.col.ticketNumber')]: tk.id,
+      [t('tickets.col.title')]: tk.title,
+      [t('ticketReports.csat.col.ratingOutOf5')]: tk.csat_rating,
+      [t('ticketReports.csat.col.comment')]: tk.csat_comment || '',
+      [t('ticketReports.csat.col.requesterName')]: tk.requester_name || '',
+      [t('ticketReports.csat.col.requesterEmail')]: tk.requester_email || '',
+      [t('ticketReports.csat.col.resolvedBy')]: tk.assigned_to || '',
+      [t('ticketReports.csat.col.ratedAt')]: tk.csat_submitted_at ? new Date(tk.csat_submitted_at).toLocaleString() : '',
     }))
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
@@ -140,23 +155,14 @@ export default function TicketReports() {
     XLSX.writeFile(wb, `ticket_ratings_report_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
-  const priorityLabel = { low: 'منخفضة', medium: 'متوسطة', high: 'عالية', critical: 'حرجة' }
-  const statusLabel = { open: 'مفتوحة', in_progress: 'قيد التنفيذ', resolved: 'محلولة', closed: 'مغلقة' }
-  const categoryLabel = {
-    network: '🌐 شبكة', laptop_maintenance: '💻 صيانة لاب', internet: '📶 انترنت',
-    printing: '🖨️ طباعة', other: '❓ أخرى', uncategorized: '— بدون —',
-  }
-  const slaLabel = { on_time: '🟢 في الموعد', at_risk: '🟠 معرّضة', breached: '🔴 متجاوزة', met: '✅ أُنجزت' }
-  const sourceLabel = { manual: 'يدوي', email: 'إيميل', telegram: 'تيليجرام', whatsapp: 'واتساب' }
-
   return (
     <div className="space-y-4">
-      <Header title="تقارير التذاكر" subtitle="فلترة، تحليل، وحفظ تقارير مخصصة لنظام التذاكر" />
+      <Header title={t('ticketReports.title')} subtitle={t('ticketReports.subtitle')} />
 
       {/* Saved presets */}
       {presets.length > 0 && (
         <div className="card !p-4 flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-slate-500 shrink-0">التقارير المحفوظة:</span>
+          <span className="text-sm text-slate-500 shrink-0">{t('ticketReports.savedReports')}</span>
           {presets.map(p => (
             <div key={p.id} className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded-full pr-1 pl-3 py-1">
               <button onClick={() => applyPreset(p)} className="text-xs font-medium text-yellow-700">{p.name}</button>
@@ -170,83 +176,83 @@ export default function TicketReports() {
       <div className="card !p-4 space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
-            <label className="form-label">من تاريخ</label>
+            <label className="form-label">{t('ticketReports.filter.dateFrom')}</label>
             <input type="date" className="form-input" value={filters.date_from} onChange={e => set('date_from', e.target.value)} />
           </div>
           <div>
-            <label className="form-label">إلى تاريخ</label>
+            <label className="form-label">{t('ticketReports.filter.dateTo')}</label>
             <input type="date" className="form-input" value={filters.date_to} onChange={e => set('date_to', e.target.value)} />
           </div>
           <div>
-            <label className="form-label">الحالة</label>
+            <label className="form-label">{t('ticketReports.filter.status')}</label>
             <select className="form-select" value={filters.status} onChange={e => set('status', e.target.value)}>
-              <option value="">الكل</option>
+              <option value="">{t('ticketReports.filter.all')}</option>
               {STATUSES.map(s => <option key={s} value={s}>{statusLabel[s]}</option>)}
             </select>
           </div>
           <div>
-            <label className="form-label">الأولوية</label>
+            <label className="form-label">{t('ticketReports.filter.priority')}</label>
             <select className="form-select" value={filters.priority} onChange={e => set('priority', e.target.value)}>
-              <option value="">الكل</option>
+              <option value="">{t('ticketReports.filter.all')}</option>
               {PRIORITIES.map(p => <option key={p} value={p}>{priorityLabel[p]}</option>)}
             </select>
           </div>
           <div>
-            <label className="form-label">نوع المشكلة</label>
+            <label className="form-label">{t('ticketReports.filter.category')}</label>
             <select className="form-select" value={filters.category} onChange={e => set('category', e.target.value)}>
-              <option value="">الكل</option>
+              <option value="">{t('ticketReports.filter.all')}</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{categoryLabel[c]}</option>)}
             </select>
           </div>
           <div>
-            <label className="form-label">المؤسسة</label>
+            <label className="form-label">{t('ticketReports.filter.organization')}</label>
             <select className="form-select" value={filters.organization_id} onChange={e => set('organization_id', e.target.value)}>
-              <option value="">الكل</option>
+              <option value="">{t('ticketReports.filter.all')}</option>
               {organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="form-label">الفرع</label>
+            <label className="form-label">{t('ticketReports.filter.branch')}</label>
             <select className="form-select" value={filters.branch_id} onChange={e => set('branch_id', e.target.value)}>
-              <option value="">الكل</option>
+              <option value="">{t('ticketReports.filter.all')}</option>
               {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="form-label">القسم</label>
+            <label className="form-label">{t('ticketReports.filter.department')}</label>
             <select className="form-select" value={filters.department_id} onChange={e => set('department_id', e.target.value)}>
-              <option value="">الكل</option>
+              <option value="">{t('ticketReports.filter.all')}</option>
               {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="form-label">المهندس المسؤول</label>
+            <label className="form-label">{t('ticketReports.filter.assignedTo')}</label>
             <select className="form-select" value={filters.assigned_to} onChange={e => set('assigned_to', e.target.value)}>
-              <option value="">الكل</option>
+              <option value="">{t('ticketReports.filter.all')}</option>
               {engineers.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="form-label">المصدر</label>
+            <label className="form-label">{t('ticketReports.filter.source')}</label>
             <select className="form-select" value={filters.source} onChange={e => set('source', e.target.value)}>
-              <option value="">الكل</option>
+              <option value="">{t('ticketReports.filter.all')}</option>
               {SOURCES.map(s => <option key={s} value={s}>{sourceLabel[s]}</option>)}
             </select>
           </div>
         </div>
         <div className="flex gap-2 pt-1">
-          <button onClick={runReport} className="btn-primary">🔍 تطبيق الفلاتر</button>
-          <button onClick={clearFilters} className="btn-secondary">✕ مسح الفلاتر</button>
-          <button onClick={() => setSaveModal(true)} className="btn-secondary">💾 حفظ كتقرير مخصص</button>
-          <button onClick={exportExcel} disabled={!data?.tickets?.length} className="btn-secondary disabled:opacity-40">📥 تصدير Excel</button>
+          <button onClick={runReport} className="btn-primary">{t('ticketReports.applyFilters')}</button>
+          <button onClick={clearFilters} className="btn-secondary">{t('ticketReports.clearFilters')}</button>
+          <button onClick={() => setSaveModal(true)} className="btn-secondary">{t('ticketReports.saveAsCustom')}</button>
+          <button onClick={exportExcel} disabled={!data?.tickets?.length} className="btn-secondary disabled:opacity-40">{t('ticketReports.exportExcel')}</button>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-slate-200">
         {[
-          { key: 'overview', label: '📊 نظرة عامة' },
-          { key: 'ratings', label: '⭐ تقييمات العملاء' },
+          { key: 'overview', label: t('ticketReports.tab.overview') },
+          { key: 'ratings', label: t('ticketReports.tab.ratings') },
         ].map(tb => (
           <button key={tb.key} onClick={() => setTab(tb.key)}
             className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
@@ -258,51 +264,56 @@ export default function TicketReports() {
       </div>
 
       {loading ? (
-        <div className="card text-center py-12 text-slate-400">جاري التحميل...</div>
+        <div className="card text-center py-12 text-slate-400">{t('ticketReports.loading')}</div>
       ) : data && tab === 'ratings' ? (
         <>
           {/* CSAT stat cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div className="card !p-4">
               <p className="text-3xl font-bold text-yellow-500">{data.avg_csat_rating ?? '—'} {data.avg_csat_rating ? '⭐' : ''}</p>
-              <p className="text-xs text-slate-500 mt-1">متوسط تقييم العملاء</p>
+              <p className="text-xs text-slate-500 mt-1">{t('ticketReports.csat.avgRating')}</p>
             </div>
             <div className="card !p-4">
               <p className="text-3xl font-bold text-slate-800">{data.csat_count || 0}</p>
-              <p className="text-xs text-slate-500 mt-1">عدد التقييمات المسجّلة</p>
+              <p className="text-xs text-slate-500 mt-1">{t('ticketReports.csat.countLabel')}</p>
             </div>
             <div className="card !p-4">
               <p className="text-3xl font-bold text-slate-800">{data.total ? Math.round(((data.csat_count || 0) / data.total) * 100) : 0}%</p>
-              <p className="text-xs text-slate-500 mt-1">نسبة التذاكر المُقيّمة</p>
+              <p className="text-xs text-slate-500 mt-1">{t('ticketReports.csat.percentRated')}</p>
             </div>
           </div>
 
           {/* Rating distribution */}
           <BreakdownCard
-            title="توزيع التقييمات"
+            title={t('ticketReports.csat.distribution')}
             data={data.by_csat_rating}
             total={data.csat_count}
             labelFor={k => '⭐'.repeat(Number(k)) + ` (${k})`}
+            noDataLabel={t('ticketReports.breakdown.noData')}
           />
 
           {/* Ratings table */}
           <div className="card !p-0 overflow-hidden">
             <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-700 text-sm">تقرير التقييمات ({ratedTickets.length})</h3>
-              <button onClick={exportRatingsExcel} disabled={!ratedTickets.length} className="btn-secondary !text-xs !py-1.5 disabled:opacity-40">📥 تصدير Excel</button>
+              <h3 className="font-bold text-slate-700 text-sm">{t('ticketReports.csat.reportTitle')} ({ratedTickets.length})</h3>
+              <button onClick={exportRatingsExcel} disabled={!ratedTickets.length} className="btn-secondary !text-xs !py-1.5 disabled:opacity-40">{t('ticketReports.exportExcel')}</button>
             </div>
             <div className="overflow-x-auto max-h-[32rem] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
                   <tr>
-                    {['#', 'التذكرة', 'التقييم', 'التعليق', 'اسم مقدّم الطلب', 'من حل المشكلة', 'تاريخ التقييم'].map(h => (
+                    {[
+                      t('ticketReports.col.index'), t('tickets.col.title'), t('ticketReports.csat.col.rating'),
+                      t('ticketReports.csat.col.comment'), t('ticketReports.csat.col.requesterName'),
+                      t('ticketReports.csat.col.resolvedBy'), t('ticketReports.csat.col.ratedAt'),
+                    ].map(h => (
                       <th key={h} className="table-th">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {ratedTickets.length === 0 ? (
-                    <tr><td colSpan={7} className="table-td text-center py-10 text-slate-400">لا توجد تقييمات مطابقة للفلاتر</td></tr>
+                    <tr><td colSpan={7} className="table-td text-center py-10 text-slate-400">{t('ticketReports.csat.noMatching')}</td></tr>
                   ) : ratedTickets.map(tk => (
                     <tr key={tk.id} className="hover:bg-slate-50/50">
                       <td className="table-td text-slate-400 text-xs">#{tk.id}</td>
@@ -331,41 +342,45 @@ export default function TicketReports() {
         <>
           {/* Stat cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="card !p-4"><p className="text-3xl font-bold text-slate-800">{data.total}</p><p className="text-xs text-slate-500 mt-1">إجمالي التذاكر</p></div>
-            <div className="card !p-4"><p className="text-3xl font-bold text-red-600">{data.by_sla_status?.breached || 0}</p><p className="text-xs text-slate-500 mt-1">متجاوزة SLA</p></div>
-            <div className="card !p-4"><p className="text-3xl font-bold text-yellow-600">{(data.by_status?.open || 0) + (data.by_status?.in_progress || 0)}</p><p className="text-xs text-slate-500 mt-1">مفتوحة/قيد التنفيذ</p></div>
-            <div className="card !p-4"><p className="text-3xl font-bold text-slate-800">{data.avg_resolution_hours ?? '—'}</p><p className="text-xs text-slate-500 mt-1">متوسط ساعات الحل</p></div>
+            <div className="card !p-4"><p className="text-3xl font-bold text-slate-800">{data.total}</p><p className="text-xs text-slate-500 mt-1">{t('ticketReports.stat.total')}</p></div>
+            <div className="card !p-4"><p className="text-3xl font-bold text-red-600">{data.by_sla_status?.breached || 0}</p><p className="text-xs text-slate-500 mt-1">{t('ticketReports.stat.slaBreached')}</p></div>
+            <div className="card !p-4"><p className="text-3xl font-bold text-yellow-600">{(data.by_status?.open || 0) + (data.by_status?.in_progress || 0)}</p><p className="text-xs text-slate-500 mt-1">{t('ticketReports.stat.openInProgress')}</p></div>
+            <div className="card !p-4"><p className="text-3xl font-bold text-slate-800">{data.avg_resolution_hours ?? '—'}</p><p className="text-xs text-slate-500 mt-1">{t('ticketReports.stat.avgResolution')}</p></div>
           </div>
 
           {/* Breakdowns */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            <BreakdownCard title="حسب الحالة" data={data.by_status} total={data.total} labelFor={k => statusLabel[k] || k} />
-            <BreakdownCard title="حسب الأولوية" data={data.by_priority} total={data.total} labelFor={k => priorityLabel[k] || k} />
-            <BreakdownCard title="حسب نوع المشكلة" data={data.by_category} total={data.total} labelFor={k => categoryLabel[k] || k} />
-            <BreakdownCard title="حسب الفرع" data={data.by_branch} total={data.total} />
-            <BreakdownCard title="حسب المؤسسة" data={data.by_organization} total={data.total} />
-            <BreakdownCard title="حسب المهندس" data={data.by_engineer} total={data.total} />
-            <BreakdownCard title="حسب المصدر" data={data.by_source} total={data.total} labelFor={k => sourceLabel[k] || k} />
-            <BreakdownCard title="حالة SLA" data={data.by_sla_status} total={data.total} labelFor={k => slaLabel[k] || k} />
+            <BreakdownCard title={t('ticketReports.breakdown.byStatus')} data={data.by_status} total={data.total} labelFor={k => statusLabel[k] || k} noDataLabel={t('ticketReports.breakdown.noData')} />
+            <BreakdownCard title={t('ticketReports.breakdown.byPriority')} data={data.by_priority} total={data.total} labelFor={k => priorityLabel[k] || k} noDataLabel={t('ticketReports.breakdown.noData')} />
+            <BreakdownCard title={t('ticketReports.breakdown.byCategory')} data={data.by_category} total={data.total} labelFor={k => categoryLabel[k] || k} noDataLabel={t('ticketReports.breakdown.noData')} />
+            <BreakdownCard title={t('ticketReports.breakdown.byBranch')} data={data.by_branch} total={data.total} noDataLabel={t('ticketReports.breakdown.noData')} />
+            <BreakdownCard title={t('ticketReports.breakdown.byOrganization')} data={data.by_organization} total={data.total} noDataLabel={t('ticketReports.breakdown.noData')} />
+            <BreakdownCard title={t('ticketReports.breakdown.byEngineer')} data={data.by_engineer} total={data.total} noDataLabel={t('ticketReports.breakdown.noData')} />
+            <BreakdownCard title={t('ticketReports.breakdown.bySource')} data={data.by_source} total={data.total} labelFor={k => sourceLabel[k] || k} noDataLabel={t('ticketReports.breakdown.noData')} />
+            <BreakdownCard title={t('ticketReports.breakdown.bySla')} data={data.by_sla_status} total={data.total} labelFor={k => slaLabel[k] || k} noDataLabel={t('ticketReports.breakdown.noData')} />
           </div>
 
           {/* Ticket list */}
           <div className="card !p-0 overflow-hidden">
             <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-700 text-sm">التذاكر ({data.tickets.length})</h3>
+              <h3 className="font-bold text-slate-700 text-sm">{t('ticketReports.ticketsList')} ({data.tickets.length})</h3>
             </div>
             <div className="overflow-x-auto max-h-[32rem] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
                   <tr>
-                    {['#', 'العنوان', 'الحالة', 'الأولوية', 'النوع', 'المسؤول', 'تاريخ الإنشاء'].map(h => (
+                    {[
+                      t('ticketReports.col.index'), t('tickets.col.title'), t('tickets.col.status'),
+                      t('tickets.col.priority'), t('ticketReports.col.type'), t('tickets.col.assignedTo'),
+                      t('tickets.col.createdAt'),
+                    ].map(h => (
                       <th key={h} className="table-th">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {data.tickets.length === 0 ? (
-                    <tr><td colSpan={7} className="table-td text-center py-10 text-slate-400">لا توجد تذاكر مطابقة للفلاتر</td></tr>
+                    <tr><td colSpan={7} className="table-td text-center py-10 text-slate-400">{t('ticketReports.noMatchingTickets')}</td></tr>
                   ) : data.tickets.map(tk => (
                     <tr key={tk.id} className="hover:bg-slate-50/50">
                       <td className="table-td text-slate-400 text-xs">#{tk.id}</td>
@@ -386,21 +401,21 @@ export default function TicketReports() {
         </>
       )}
 
-      <Modal isOpen={saveModal} onClose={() => setSaveModal(false)} title="حفظ تقرير مخصص" size="sm">
+      <Modal isOpen={saveModal} onClose={() => setSaveModal(false)} title={t('ticketReports.saveModal.title')} size="sm">
         <div className="space-y-4">
           <div>
-            <label className="form-label">اسم التقرير</label>
+            <label className="form-label">{t('ticketReports.saveModal.nameLabel')}</label>
             <input className="form-input" value={presetName} onChange={e => setPresetName(e.target.value)}
-              placeholder="مثال: تذاكر الشبكة عالية الأولوية" autoFocus
+              placeholder={t('ticketReports.saveModal.namePlaceholder')} autoFocus
               onKeyDown={e => e.key === 'Enter' && handleSavePreset()} />
           </div>
-          <p className="text-xs text-slate-400">هيتم حفظ الفلاتر المطبّقة حاليًا، وتقدر تشغّل نفس التقرير تاني في أي وقت من قائمة "التقارير المحفوظة".</p>
+          <p className="text-xs text-slate-400">{t('ticketReports.saveModal.hint')}</p>
         </div>
         <div className="flex gap-3 mt-5 pt-4 border-t border-slate-100">
           <button onClick={handleSavePreset} disabled={saving} className="btn-primary flex-1 justify-center">
-            {saving ? 'جاري الحفظ...' : 'حفظ'}
+            {saving ? t('ticketReports.saveModal.saving') : t('ticketReports.saveModal.save')}
           </button>
-          <button onClick={() => setSaveModal(false)} className="btn-secondary">إلغاء</button>
+          <button onClick={() => setSaveModal(false)} className="btn-secondary">{t('ticketReports.saveModal.cancel')}</button>
         </div>
       </Modal>
     </div>

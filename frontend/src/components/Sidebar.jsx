@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { to: '/requests', key: 'nav.requests', icon: '📋' },
   {
     key: 'nav.ticketingSystem', icon: '🎫', children: [
+      { to: '/ticket-dashboard',  key: 'nav.ticketDashboard',   icon: '📊' },
       { to: '/tickets',           key: 'nav.tickets',           icon: '🎫' },
       { to: '/sla',               key: 'nav.sla',               icon: '⏱️' },
       { to: '/inbox',             key: 'nav.inbox',             icon: '📥' },
