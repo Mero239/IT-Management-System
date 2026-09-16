@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { API_BASE } from '../api/client'
 import { BRAND_TAGLINE } from '../constants'
@@ -11,16 +11,17 @@ export default function RateTicket() {
   const [status, setStatus] = useState('idle') // idle | saving | done | error | already
   const [hover, setHover] = useState(0)
   const [selected, setSelected] = useState(urlRating)
+  const [comment, setComment] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
 
-  const submit = async (rating) => {
-    setSelected(rating)
+  const submit = async () => {
+    if (!selected) return
     setStatus('saving')
     try {
       const res = await fetch(`${API_BASE}/tickets/${id}/csat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating }),
+        body: JSON.stringify({ rating: selected, comment: comment.trim() || undefined }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -33,11 +34,6 @@ export default function RateTicket() {
       setStatus('error')
     }
   }
-
-  // one-click from email: rating already in URL
-  useEffect(() => {
-    if (urlRating >= 1 && urlRating <= 5) submit(urlRating)
-  }, []) // eslint-disable-line
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-yellow-800 to-yellow-700 flex items-center justify-center p-4" dir="ltr">
@@ -78,7 +74,7 @@ export default function RateTicket() {
                   <button
                     key={n}
                     disabled={status === 'saving'}
-                    onClick={() => submit(n)}
+                    onClick={() => setSelected(n)}
                     onMouseEnter={() => setHover(n)}
                     onMouseLeave={() => setHover(0)}
                     className="text-5xl transition-transform active:scale-90 disabled:opacity-50"
@@ -88,7 +84,30 @@ export default function RateTicket() {
                   </button>
                 ))}
               </div>
-              {status === 'saving' && <p className="text-xs text-slate-400 mt-4">Saving...</p>}
+
+              {selected > 0 && (
+                <div className="mt-5 text-left">
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                    Add a comment (optional)
+                  </label>
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    disabled={status === 'saving'}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="Tell us more about your experience..."
+                    className="w-full border-2 border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-yellow-500 disabled:opacity-50 resize-none"
+                  />
+                  <button
+                    onClick={submit}
+                    disabled={status === 'saving'}
+                    className="w-full mt-3 py-3 rounded-xl bg-yellow-600 text-white font-bold text-sm active:bg-yellow-700 active:scale-[.98] transition-all disabled:opacity-60"
+                  >
+                    {status === 'saving' ? 'Submitting...' : 'Submit'}
+                  </button>
+                </div>
+              )}
             </>
           )}
           <p className="text-xs text-slate-400 mt-6 pt-5 border-t border-slate-100">

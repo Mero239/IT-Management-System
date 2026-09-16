@@ -397,10 +397,15 @@ def submit_csat(ticket_id: int, data: schemas.CsatSubmit, db: Session = Depends(
         raise HTTPException(status_code=404, detail="Ticket not found")
     if obj.csat_rating is not None:
         raise HTTPException(status_code=400, detail="A rating has already been submitted for this ticket")
+    comment = (data.comment or "").strip()[:2000] or None
     obj.csat_rating = data.rating
+    obj.csat_comment = comment
     obj.csat_submitted_at = datetime.now(timezone.utc)
     db.commit()
-    _add_activity(db, ticket_id, f"⭐ قيّم مقدّم الطلب التذكرة: {data.rating}/5")
+    note = f"⭐ قيّم مقدّم الطلب التذكرة: {data.rating}/5"
+    if comment:
+        note += f" — تعليق: {comment}"
+    _add_activity(db, ticket_id, note)
     return {"message": "Thank you for your rating"}
 
 

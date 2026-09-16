@@ -211,7 +211,7 @@ def send_otp_admin_notice(engineer_name: str, engineer_email: str, admin_email: 
         return False
 
 
-STATUS_LABELS_AR = {"open": "مفتوحة", "in_progress": "قيد التنفيذ", "resolved": "محلولة", "closed": "مغلقة"}
+STATUS_LABELS_AR = {"open": "مفتوحة", "in_progress": "قيد التنفيذ", "resolved": "تم الحل", "closed": "مغلقة"}
 
 
 def send_ticket_status_update_email(requester_name: str, requester_email: str, ticket_id: int, ticket_title: str, new_status: str, resolution: str = "") -> bool:
@@ -251,7 +251,7 @@ def send_ticket_status_update_email(requester_name: str, requester_email: str, t
         </div>
         {resolution_block}
         <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">
-          لو محتاج أي تواصل إضافي بخصوص التذكرة دي، رد على الإيميل ده.
+          في حال احتجت إلى أي تواصل إضافي بخصوص هذه التذكرة، يُرجى الرد على هذا البريد الإلكتروني.
         </p>
       </div>
       <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 16px;">

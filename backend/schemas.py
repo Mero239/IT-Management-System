@@ -144,6 +144,7 @@ class SupportTicketOut(SupportTicketBase):
     attachment_original_name: Optional[str] = None
     attachment_size: Optional[int] = None
     csat_rating: Optional[int] = None
+    csat_comment: Optional[str] = None
     csat_submitted_at: Optional[datetime] = None
     escalated: Optional[str] = None
 
@@ -308,6 +309,7 @@ class RecurringTemplateOut(RecurringTemplateBase):
 
 class CsatSubmit(BaseModel):
     rating: int
+    comment: Optional[str] = None
 
 
 class TicketReportPresetCreate(BaseModel):

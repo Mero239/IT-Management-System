@@ -90,12 +90,12 @@ function InternalLayout({ children }) {
     <div className="flex min-h-screen">
       <Sidebar />
       {mobileView && sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-30" onClick={() => setSidebarOpen(false)} />
+        <div className="no-print fixed inset-0 bg-black/40 z-30" onClick={() => setSidebarOpen(false)} />
       )}
       <main className="flex-1 p-6 overflow-auto min-w-0">
         {mobileView && (
           <button onClick={() => setSidebarOpen(true)}
-            className="mb-4 flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 text-sm font-medium">
+            className="no-print mb-4 flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 text-sm font-medium">
             ☰ <span>{t('sidebar.menu')}</span>
           </button>
         )}

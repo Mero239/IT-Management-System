@@ -112,6 +112,7 @@ class SupportTicket(Base):
     attachment_size = Column(Integer, nullable=True)
     asset_id = Column(Integer, ForeignKey("assets.id"), nullable=True)
     csat_rating = Column(Integer, nullable=True)              # 1-5, set once by requester after resolution
+    csat_comment = Column(Text, nullable=True)                # optional free-text feedback alongside the rating
     csat_submitted_at = Column(DateTime(timezone=True), nullable=True)
     escalated = Column(String(5), default="false")            # "true" once auto-escalated for this SLA breach risk
     recurring_template_id = Column(Integer, ForeignKey("recurring_ticket_templates.id"), nullable=True)

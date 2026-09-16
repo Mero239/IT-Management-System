@@ -530,6 +530,12 @@ export default function TicketDetail() {
             {ticket.csat_rating && (
               <InfoRow label="تقييم مقدّم الطلب" value={'⭐'.repeat(ticket.csat_rating) + ` (${ticket.csat_rating}/5)`} icon="😊" highlight />
             )}
+            {ticket.csat_comment && (
+              <div className="bg-yellow-50 border border-yellow-100 rounded-xl px-3 py-2.5 text-sm text-slate-700">
+                <p className="text-xs font-medium text-yellow-700 mb-1">💬 تعليق مقدّم الطلب</p>
+                <p className="whitespace-pre-line">{ticket.csat_comment}</p>
+              </div>
+            )}
             {ticket.escalated === 'true' && (
               <div className="flex items-center gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2 text-xs text-red-600 font-medium">
                 ⚠️ تم تصعيد هذه التذكرة تلقائيًا لتجاوز/اقتراب موعد SLA

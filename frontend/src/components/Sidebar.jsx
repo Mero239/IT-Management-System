@@ -195,7 +195,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className={`${collapsed ? 'w-[72px]' : 'w-64'} min-h-screen bg-gradient-to-b from-yellow-900 to-yellow-800 flex flex-col shadow-xl shrink-0 transition-all duration-200 ${
+    <aside className={`no-print ${collapsed ? 'w-[72px]' : 'w-64'} min-h-screen bg-gradient-to-b from-yellow-900 to-yellow-800 flex flex-col shadow-xl shrink-0 transition-all duration-200 ${
       mobileView
         ? `fixed inset-y-0 z-40 transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'}`
         : ''

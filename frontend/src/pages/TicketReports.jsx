@@ -128,6 +128,7 @@ export default function TicketReports() {
       'رقم التذكرة': t.id,
       'عنوان المشكلة': t.title,
       'التقييم (من 5)': t.csat_rating,
+      'تعليق مقدّم الطلب': t.csat_comment || '',
       'اسم مقدّم الطلب': t.requester_name || '',
       'بريد مقدّم الطلب': t.requester_email || '',
       'من حل المشكلة': t.assigned_to || '',
@@ -294,14 +295,14 @@ export default function TicketReports() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
                   <tr>
-                    {['#', 'التذكرة', 'التقييم', 'اسم مقدّم الطلب', 'من حل المشكلة', 'تاريخ التقييم'].map(h => (
+                    {['#', 'التذكرة', 'التقييم', 'التعليق', 'اسم مقدّم الطلب', 'من حل المشكلة', 'تاريخ التقييم'].map(h => (
                       <th key={h} className="table-th">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {ratedTickets.length === 0 ? (
-                    <tr><td colSpan={6} className="table-td text-center py-10 text-slate-400">لا توجد تقييمات مطابقة للفلاتر</td></tr>
+                    <tr><td colSpan={7} className="table-td text-center py-10 text-slate-400">لا توجد تقييمات مطابقة للفلاتر</td></tr>
                   ) : ratedTickets.map(tk => (
                     <tr key={tk.id} className="hover:bg-slate-50/50">
                       <td className="table-td text-slate-400 text-xs">#{tk.id}</td>
@@ -312,6 +313,7 @@ export default function TicketReports() {
                         <span className="text-amber-500">{'★'.repeat(tk.csat_rating)}</span>
                         <span className="text-slate-200">{'★'.repeat(5 - tk.csat_rating)}</span>
                       </td>
+                      <td className="table-td text-slate-500 text-xs max-w-[16rem] truncate" title={tk.csat_comment || ''}>{tk.csat_comment || '—'}</td>
                       <td className="table-td text-slate-600 text-xs">
                         {tk.requester_name || '—'}
                         {tk.requester_email && <p className="text-slate-400">{tk.requester_email}</p>}
