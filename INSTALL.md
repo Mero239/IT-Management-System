@@ -39,6 +39,100 @@ docker compose up -d
 
 كلمة المرور الافتراضية لأي حساب جديد: القيمة اللي حطيتها وقت التثبيت (أو في `DEFAULT_PASSWORD` بملف `.env`).
 
+## النشر على الإنترنت بدومين حقيقي و HTTPS (nginx + certbot)
+
+الخطوات دي لما يكون عندك دومين حقيقي (مثلاً `itms.example.com`) موجّه بـ DNS (A record) لعنوان IP السيرفر، وعايز الموقع يبقى متاح على الإنترنت بـ HTTPS بدال ما يفضل داخلي بس.
+
+### المتطلبات الإضافية
+- دومين موجّه لعنوان IP السيرفر
+- بورت 80 و443 مفتوحين في فايروول السيرفر **وكمان** في Security Group/Firewall بتاع مزود الاستضافة لو سيرفر سحابي
+
+### 1. شغّل التطبيق على بورت داخلي (مش 80)
+في `.env`:
+```
+HTTP_PORT=8080
+```
+(سيبنا بورت 80 و443 فاضيين لـ nginx، والتطبيق نفسه بيشتغل داخليًا على 8080)
+```bash
+docker compose up -d --build
+```
+
+### 2. ثبّت nginx و certbot
+```bash
+sudo apt update
+sudo apt install -y nginx certbot python3-certbot-nginx
+```
+
+### 3. إعداد nginx كـ reverse proxy
+```bash
+sudo nano /etc/nginx/sites-available/<دومينك>
+```
+الصق المحتوى ده (غيّر `<دومينك>`):
+```nginx
+server {
+    listen 80;
+    server_name <دومينك>;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 30M;
+    }
+}
+```
+```bash
+sudo ln -s /etc/nginx/sites-available/<دومينك> /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### 4. شهادة SSL مجانية (Let's Encrypt)
+```bash
+sudo certbot --nginx -d <دومينك>
+```
+لما يسأل "Redirect HTTP to HTTPS?" اختار **Redirect**. التجديد بيحصل تلقائيًا (certbot بيظبط systemd timer بنفسه)؛ للتأكد:
+```bash
+sudo certbot renew --dry-run
+sudo systemctl status certbot.timer
+```
+
+### 5. قفل أي بورتات مباشرة قديمة
+لو كان عندك نسخة تطوير شغالة قبل كده (`start.sh`، أو systemd services بتشغّله تلقائي)، لازم توقفها وتتأكد إنها معطّلة نهائيًا:
+```bash
+sudo systemctl stop it-backend.service it-frontend.service 2>/dev/null
+sudo systemctl disable it-backend.service it-frontend.service 2>/dev/null
+```
+وقفل أي بورت غير 80/443/22 في الفايروول:
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+```
+
+### النتيجة
+`https://<دومينك>` → nginx (SSL) → التطبيق (8080) → الباك إند داخليًا (زي ما هو متظبط في `frontend/nginx.conf` أصلاً).
+
+### لو عندك بيانات من نسخة تطوير قديمة (`start.sh`) عايز تنقلها لـ Docker
+البيانات في وضع التطوير بتتخزن مباشرة جوه `backend/` (`it_management.db`، `ticket_attachments/`، `agreements/`، ملفات الإعدادات `*.json`)، لكن Docker بيحطها في volume منفصل. لنقلها:
+```bash
+docker compose down
+docker run --rm \
+  -v $(pwd)/backend:/old:ro \
+  -v <اسم-مجلد-المشروع>_it_data:/data \
+  alpine sh -c "
+    cp -v /old/it_management.db /data/ 2>/dev/null
+    cp -v /old/email_agent_config.json /data/ 2>/dev/null
+    cp -v /old/telegram_config.json /data/ 2>/dev/null
+    cp -v /old/monitor_config.json /data/ 2>/dev/null
+    cp -rv /old/ticket_attachments /data/ 2>/dev/null
+    cp -rv /old/agreements /data/ 2>/dev/null
+  "
+docker compose up -d
+```
+اسم الـ volume الافتراضي هو `<اسم مجلد المشروع>_it_data` — تأكد منه بـ `docker volume ls`.
+
 ## تخصيص النظام لشركتك
 
 | الإعداد | فين | ملاحظة |
