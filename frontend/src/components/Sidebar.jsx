@@ -7,16 +7,17 @@ import { useDisplay } from '../context/DisplayContext'
 
 const NAV_ITEMS = [
   { to: '/', key: 'nav.dashboard', icon: '📊', end: true },
-  { to: '/assets', key: 'nav.assets', icon: '🖥️' },
-  { to: '/requests', key: 'nav.requests', icon: '📋' },
   {
     // Everything ticket-related lives here as one self-contained module — the
     // day-to-day items any engineer uses, plus (marked adminOnly) the pages
     // that configure how the ticketing system itself behaves. adminOnly
     // children are filtered out for non-admins in NavGroup below, same as
     // the standalone admin section used to gate them.
+    //
+    // This group sits right under the dashboard on purpose — ticketing is
+    // the primary workflow of the app, and "/" itself renders TicketDashboard
+    // (see App.jsx), so there's no separate dashboard link duplicated in here.
     key: 'nav.ticketingSystem', icon: '🎫', children: [
-      { to: '/ticket-dashboard',  key: 'nav.ticketDashboard',   icon: '📊' },
       { to: '/tickets',           key: 'nav.tickets',           icon: '🎫' },
       { to: '/sla',               key: 'nav.sla',               icon: '⏱️' },
       { to: '/inbox',             key: 'nav.inbox',             icon: '📥' },
@@ -36,6 +37,9 @@ const NAV_ITEMS = [
       { to: '/email-agent',            key: 'nav.emailAgent',            icon: '🤖', adminOnly: true },
     ],
   },
+  { to: '/assets-overview', key: 'nav.assetsOverview', icon: '📊' },
+  { to: '/assets', key: 'nav.assets', icon: '🖥️' },
+  { to: '/requests', key: 'nav.requests', icon: '📋' },
   { to: '/employees',          key: 'nav.employees',       icon: '👥' },
   { to: '/employees/discrepancies', key: 'nav.discrepancies', icon: '⚠️' },
   { to: '/mailboxes',          key: 'nav.mailboxes',       icon: '📬' },

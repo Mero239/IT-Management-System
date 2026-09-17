@@ -68,7 +68,7 @@ function RequireAuth({ children }) {
 // anything else redirects back to /tickets — this backs up the Sidebar's
 // nav filtering so it can't be bypassed by typing a URL directly.
 const TICKETS_ONLY_ALLOWED_PREFIXES = [
-  '/tickets', '/sla', '/inbox', '/telegram-tickets', '/whatsapp-tickets',
+  '/', '/tickets', '/sla', '/inbox', '/telegram-tickets', '/whatsapp-tickets',
   '/email-tickets', '/engineer-dashboard', '/knowledge-base', '/settings',
   '/ticket-reports', '/canned-responses', '/ticket-dashboard',
 ]
@@ -131,7 +131,8 @@ export default function App() {
                   <TicketsOnlyGuard>
                   <InternalLayout>
                     <Routes>
-                      <Route path="/"                    element={<Dashboard />} />
+                      <Route path="/"                    element={<TicketDashboard />} />
+                      <Route path="/assets-overview"     element={<Dashboard />} />
                       <Route path="/assets"              element={<Assets />} />
                       <Route path="/requests"            element={<Requests />} />
                       <Route path="/tickets"             element={<Tickets />} />

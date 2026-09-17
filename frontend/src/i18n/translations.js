@@ -7,6 +7,7 @@ export const translations = {
 
     // Navigation
     'nav.dashboard': 'Dashboard',
+    'nav.assetsOverview': 'Assets Overview',
     'nav.assets': 'Asset Inventory',
     'nav.requests': 'Needs Requests',
     'nav.ticketingSystem': 'Ticketing System',
@@ -737,6 +738,7 @@ export const translations = {
 
     // Navigation
     'nav.dashboard': 'لوحة التحكم',
+    'nav.assetsOverview': 'نظرة عامة على الأصول',
     'nav.assets': 'حصر الأصول',
     'nav.requests': 'طلبات الاحتياجات',
     'nav.ticketingSystem': 'نظام التذاكر',
