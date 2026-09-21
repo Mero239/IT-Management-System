@@ -387,8 +387,10 @@ def get_ticket(ticket_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=schemas.SupportTicketOut)
 def create_ticket(ticket: schemas.SupportTicketCreate, db: Session = Depends(get_db)):
-    if ticket.category and ticket.category not in models.TICKET_CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"category must be one of {models.TICKET_CATEGORIES}")
+    if ticket.category:
+        valid_values = {c[0] for c in db.query(models.TicketCategory.value).all()} or set(models.TICKET_CATEGORIES)
+        if ticket.category not in valid_values:
+            raise HTTPException(status_code=400, detail=f"category must be one of {sorted(valid_values)}")
     duplicate_of = _find_possible_duplicate(ticket.title, ticket.category, db)
     obj = models.SupportTicket(**ticket.model_dump())
     routing_match = None

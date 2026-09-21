@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
-import { ticketReportsApi, departmentsApi, organizationsApi, branchesApi, engineersApi } from '../api/client'
+import { ticketReportsApi, departmentsApi, organizationsApi, branchesApi, engineersApi, ticketCategoriesApi } from '../api/client'
 import Modal from '../components/Modal'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
 
 const STATUSES = ['open', 'in_progress', 'resolved', 'closed']
 const PRIORITIES = ['low', 'medium', 'high', 'critical']
-const CATEGORIES = ['network', 'laptop_maintenance', 'internet', 'printing', 'other']
 const SOURCES = ['manual', 'email', 'telegram', 'whatsapp']
 
 const emptyFilters = {
@@ -46,6 +45,7 @@ export default function TicketReports() {
   const [organizations, setOrganizations] = useState([])
   const [branches, setBranches] = useState([])
   const [engineers, setEngineers] = useState([])
+  const [categories, setCategories] = useState([])
   const [presets, setPresets] = useState([])
   const [saveModal, setSaveModal] = useState(false)
   const [presetName, setPresetName] = useState('')
@@ -59,6 +59,7 @@ export default function TicketReports() {
     organizationsApi.list().then(r => setOrganizations(r.data))
     branchesApi.list().then(r => setBranches(r.data))
     engineersApi.list().then(r => setEngineers(r.data))
+    ticketCategoriesApi.list().then(r => setCategories(r.data))
     loadPresets()
   }, [])
 
@@ -98,8 +99,8 @@ export default function TicketReports() {
   const priorityLabel = { low: t('priority.low'), medium: t('priority.medium'), high: t('priority.high'), critical: t('priority.critical') }
   const statusLabel = { open: t('status.open'), in_progress: t('status.in_progress'), resolved: t('status.resolved'), closed: t('status.closed') }
   const categoryLabel = {
-    network: t('category.network'), laptop_maintenance: t('category.laptop_maintenance'), internet: t('category.internet'),
-    printing: t('category.printing'), other: t('category.other'), uncategorized: t('ticketReports.category.uncategorized'),
+    ...Object.fromEntries(categories.map(c => [c.value, c.label])),
+    uncategorized: t('ticketReports.category.uncategorized'),
   }
   const slaLabel = {
     on_time: t('ticketReports.sla.onTime'), at_risk: t('ticketReports.sla.atRisk'),
@@ -201,7 +202,7 @@ export default function TicketReports() {
             <label className="form-label">{t('ticketReports.filter.category')}</label>
             <select className="form-select" value={filters.category} onChange={e => set('category', e.target.value)}>
               <option value="">{t('ticketReports.filter.all')}</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{categoryLabel[c]}</option>)}
+              {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </div>
           <div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ticketReportsApi } from '../api/client'
+import { ticketReportsApi, ticketCategoriesApi } from '../api/client'
 import StatCard from '../components/StatCard'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
@@ -30,9 +30,11 @@ export default function TicketDashboard() {
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [categories, setCategories] = useState([])
 
   useEffect(() => {
     ticketReportsApi.data({}).then(r => setData(r.data)).finally(() => setLoading(false))
+    ticketCategoriesApi.list().then(r => setCategories(r.data)).catch(() => {})
   }, [])
 
   if (loading || !data) return (
@@ -44,8 +46,8 @@ export default function TicketDashboard() {
   const priorityLabel = { low: t('priority.low'), medium: t('priority.medium'), high: t('priority.high'), critical: t('priority.critical') }
   const statusLabel = { open: t('status.open'), in_progress: t('status.in_progress'), resolved: t('status.resolved'), closed: t('status.closed') }
   const categoryLabel = {
-    network: t('category.network'), laptop_maintenance: t('category.laptop_maintenance'), internet: t('category.internet'),
-    printing: t('category.printing'), other: t('category.other'), uncategorized: t('ticketReports.category.uncategorized'),
+    ...Object.fromEntries(categories.map(c => [c.value, c.label])),
+    uncategorized: t('ticketReports.category.uncategorized'),
   }
   const slaLabel = {
     on_time: t('ticketReports.sla.onTime'), at_risk: t('ticketReports.sla.atRisk'),

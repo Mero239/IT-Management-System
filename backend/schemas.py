@@ -3,6 +3,42 @@ from typing import Optional
 from datetime import datetime
 
 
+class TaskBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    task_type: Optional[str] = None
+    frequency: str = "one_time"
+    task_date: datetime
+    assigned_to: Optional[str] = None
+    status: str = "pending"
+
+
+class TaskCreate(TaskBase):
+    pass
+
+
+class TaskOut(TaskBase):
+    id: int
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class TicketCategoryCreate(BaseModel):
+    label: str
+    icon: Optional[str] = "🏷️"
+
+
+class TicketCategoryOut(BaseModel):
+    id: int
+    value: str
+    label: str
+    icon: Optional[str] = "🏷️"
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
 class DepartmentBase(BaseModel):
     name: str
     manager: Optional[str] = None

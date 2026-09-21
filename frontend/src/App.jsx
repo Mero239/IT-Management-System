@@ -29,6 +29,9 @@ import RateTicket from './pages/RateTicket'
 import TrackTicket from './pages/TrackTicket'
 import CannedResponses from './pages/CannedResponses'
 import RecurringTickets from './pages/RecurringTickets'
+import TicketCategories from './pages/TicketCategories'
+import MenuCustomizer from './pages/MenuCustomizer'
+import Tasks from './pages/Tasks'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
 import AdminEngineers from './pages/AdminEngineers'
@@ -160,6 +163,9 @@ export default function App() {
                       <Route path="/admin/ticket-routing" element={<TicketRouting />} />
                       <Route path="/canned-responses"    element={<CannedResponses />} />
                       <Route path="/admin/recurring-tickets" element={<RecurringTickets />} />
+                      <Route path="/admin/ticket-categories" element={<TicketCategories />} />
+                      <Route path="/menu-customizer" element={<MenuCustomizer />} />
+                      <Route path="/tasks" element={<Tasks />} />
                       <Route path="/admin/monitor"       element={<ServerMonitor />} />
                       <Route path="/telegram-tickets"    element={<TelegramTickets />} />
                       <Route path="/whatsapp-tickets"    element={<WhatsAppTickets />} />

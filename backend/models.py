@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
@@ -8,7 +8,53 @@ from datetime import datetime, timedelta
 SLA_HOURS_BY_PRIORITY = {"critical": 4, "high": 24, "medium": 72, "low": 168}
 
 # Ticket problem categories, shown as a dropdown when opening a new ticket.
+# Kept as the seed data for the ticket_categories table (see TicketCategory
+# below) — admins can add more from the UI without touching code.
 TICKET_CATEGORIES = ["network", "laptop_maintenance", "internet", "printing", "other"]
+TICKET_CATEGORIES_SEED = [
+    {"value": "network",            "label": "مشكلة شبكة",    "icon": "🌐"},
+    {"value": "laptop_maintenance", "label": "صيانة لاب توب", "icon": "💻"},
+    {"value": "internet",           "label": "انترنت بيقطع",  "icon": "📶"},
+    {"value": "printing",           "label": "مشكلة طباعة",   "icon": "🖨️"},
+    {"value": "other",              "label": "أخرى",          "icon": "❓"},
+]
+
+
+class EngineerTask(Base):
+    """A logged task/activity for an IT-management engineer — daily, weekly,
+    monthly, or one-off work items. Unlike RecurringTicketTemplate, this is a
+    plain log (what got done / needs doing), not an auto-scheduler."""
+    __tablename__ = "engineer_tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+    task_type = Column(String(100), nullable=True)
+    frequency = Column(String(20), default="one_time")    # daily | weekly | monthly | one_time
+    task_date = Column(DateTime(timezone=True), nullable=False)
+    assigned_to = Column(String(200), nullable=True)
+    status = Column(String(20), default="pending")        # pending | done
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class EngineerNavConfig(Base):
+    """Per-engineer sidebar customization — order/grouping (`sections`) and
+    renamed labels (`labels`, {nav key: custom text}). Personal, not shared:
+    each engineer only ever reads/writes their own row (see routes/nav_config.py)."""
+    __tablename__ = "engineer_nav_configs"
+    id = Column(Integer, primary_key=True, index=True)
+    engineer_id = Column(Integer, unique=True, nullable=False, index=True)
+    sections = Column(JSON, nullable=False)
+    labels = Column(JSON, nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class TicketCategory(Base):
+    __tablename__ = "ticket_categories"
+    id = Column(Integer, primary_key=True, index=True)
+    value = Column(String(50), unique=True, nullable=False)
+    label = Column(String(100), nullable=False)
+    icon = Column(String(10), default="🏷️")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class Department(Base):

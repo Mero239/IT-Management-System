@@ -1,75 +1,22 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useLanguage } from '../context/LanguageContext'
 import { useEffect, useRef, useState } from 'react'
-import { notificationsApi } from '../api/client'
+import { notificationsApi, navConfigApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useDisplay } from '../context/DisplayContext'
+import { DEFAULT_STRUCTURE, resolveStructure, mergeWithDefaults } from '../navConfig'
 
-const NAV_ITEMS = [
-  { to: '/', key: 'nav.dashboard', icon: '📊', end: true },
-  {
-    // Everything ticket-related lives here as one self-contained module — the
-    // day-to-day items any engineer uses, plus (marked adminOnly) the pages
-    // that configure how the ticketing system itself behaves. adminOnly
-    // children are filtered out for non-admins in NavGroup below, same as
-    // the standalone admin section used to gate them.
-    //
-    // This group sits right under the dashboard on purpose — ticketing is
-    // the primary workflow of the app, and "/" itself renders TicketDashboard
-    // (see App.jsx), so there's no separate dashboard link duplicated in here.
-    key: 'nav.ticketingSystem', icon: '🎫', children: [
-      { to: '/tickets',           key: 'nav.tickets',           icon: '🎫' },
-      { to: '/sla',               key: 'nav.sla',               icon: '⏱️' },
-      { to: '/inbox',             key: 'nav.inbox',             icon: '📥' },
-      { to: '/telegram-tickets',  key: 'nav.telegramTickets',   icon: '✈️' },
-      { to: '/whatsapp-tickets',  key: 'nav.whatsappTickets',   icon: '💬' },
-      { to: '/email-tickets',     key: 'nav.emailTickets',      icon: '✉️' },
-      { to: '/engineer-dashboard', key: 'nav.myTickets',        icon: '👷' },
-      { to: '/knowledge-base',    key: 'nav.knowledgeBase',     icon: '📚' },
-      { to: '/ticket-reports',    key: 'nav.ticketReports',     icon: '📊' },
-      { to: '/canned-responses',  key: 'nav.cannedResponses',   icon: '💬' },
-      { to: '/support-agreement', key: 'nav.supportAgreement',  icon: '🤝' },
-      { to: '/admin/dashboard',        key: 'nav.adminDashboard',        icon: '📈', adminOnly: true },
-      { to: '/admin/ticket-log',       key: 'nav.adminTicketLog',        icon: '📋', adminOnly: true },
-      { to: '/admin/ticket-routing',   key: 'nav.adminTicketRouting',    icon: '🧭', adminOnly: true },
-      { to: '/admin/recurring-tickets', key: 'nav.adminRecurringTickets', icon: '🔁', adminOnly: true },
-      { to: '/admin/channels',         key: 'nav.adminChannels',         icon: '📱', adminOnly: true },
-      { to: '/email-agent',            key: 'nav.emailAgent',            icon: '🤖', adminOnly: true },
-    ],
-  },
-  { to: '/assets-overview', key: 'nav.assetsOverview', icon: '📊' },
-  { to: '/assets', key: 'nav.assets', icon: '🖥️' },
-  { to: '/requests', key: 'nav.requests', icon: '📋' },
-  { to: '/employees',          key: 'nav.employees',       icon: '👥' },
-  { to: '/employees/discrepancies', key: 'nav.discrepancies', icon: '⚠️' },
-  { to: '/mailboxes',          key: 'nav.mailboxes',       icon: '📬' },
-  { to: '/departments', key: 'nav.departments', icon: '🏢' },
-  { to: '/organizations', key: 'nav.organizations', icon: '🏛️' },
-  { to: '/licensed-software', key: 'nav.licensedSoftware', icon: '📜' },
-  { to: '/reports', key: 'nav.reports', icon: '📈' },
-  { to: '/import', key: 'nav.import', icon: '📥' },
-  { to: '/swreport', key: 'nav.swreport', icon: '📊' },
-  { to: '/it-team', key: 'nav.itTeam', icon: '👥' },
-]
-
-const ADMIN_GROUP = {
-  key: 'sidebar.adminSection', icon: '🛡️', children: [
-    { to: '/admin/reports',     key: 'nav.adminReports',     icon: '📈' },
-    { to: '/admin/engineers',   key: 'nav.adminEngineers',   icon: '🛡️' },
-    { to: '/admin/monitor',     key: 'nav.adminMonitor',     icon: '📡' },
-  ],
-}
-
-function NavGroup({ item, isOpen, isActive, onToggle, t, collapsed, isAdmin }) {
+function NavGroup({ item, isOpen, isActive, onToggle, t, labelFor, collapsed, isAdmin }) {
   const navigate = useNavigate()
   const visibleChildren = item.children.filter((c) => !c.adminOnly || isAdmin)
   const firstAdminIdx = visibleChildren.findIndex((c) => c.adminOnly)
 
   if (collapsed) {
+    if (!visibleChildren.length) return null
     return (
       <button
         onClick={() => navigate(visibleChildren[0].to)}
-        title={t(item.key)}
+        title={labelFor(item.key)}
         className={`sidebar-link w-full flex items-center justify-center !text-white ${isActive ? '!bg-sky-500/40' : ''}`}
       >
         <span className="text-lg">{item.icon}</span>
@@ -87,7 +34,7 @@ function NavGroup({ item, isOpen, isActive, onToggle, t, collapsed, isAdmin }) {
       >
         <span className="flex items-center gap-3">
           <span className="text-lg">{item.icon}</span>
-          <span>{t(item.key)}</span>
+          <span>{labelFor(item.key)}</span>
         </span>
         <span className={`text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`}>▾</span>
       </button>
@@ -105,7 +52,7 @@ function NavGroup({ item, isOpen, isActive, onToggle, t, collapsed, isAdmin }) {
                 className={({ isActive }) => `sidebar-link !text-slate-700 ${isActive ? '!bg-blue-600 !text-white font-bold shadow' : 'hover:!bg-sky-200'}`}
               >
                 <span className="text-base">{child.icon}</span>
-                <span>{t(child.key)}</span>
+                <span>{labelFor(child.key)}</span>
               </NavLink>
             </div>
           ))}
@@ -135,15 +82,31 @@ export default function Sidebar() {
 
   const isAdmin = engineer?.permission_level === 'admin'
 
+  // The menu's order/grouping is admin-customizable (see /admin/menu-customizer)
+  // — icons/routes stay code-defined in navConfig.js, only which items exist
+  // where is saved server-side. Falls back to the built-in default until (or
+  // unless) an admin has saved a custom arrangement.
+  const [structure, setStructure] = useState(DEFAULT_STRUCTURE)
+  const [labels, setLabels] = useState({})
+  useEffect(() => {
+    navConfigApi.get().then(r => {
+      if (r.data?.sections?.length) setStructure(mergeWithDefaults(r.data.sections))
+      if (r.data?.labels) setLabels(r.data.labels)
+    }).catch(() => {})
+  }, [])
+  const labelFor = (key) => labels[key] || t(key)
+  const resolvedItems = resolveStructure(structure)
+  const topLevelItems = resolvedItems.filter(i => !i.adminOnly || isAdmin)
+
   // Users restricted to access_scope 'tickets_only' see nothing but the
   // ticketing system's own channels — flattened, since it's their entire menu.
   const isTicketsOnly = engineer?.access_scope === 'tickets_only'
-  const ticketingGroup = NAV_ITEMS.find(i => i.key === 'nav.ticketingSystem')
+  const ticketingGroup = resolvedItems.find(i => i.key === 'nav.ticketingSystem')
   const visibleNavItems = isTicketsOnly && ticketingGroup
     ? ticketingGroup.children.filter((c) => !c.adminOnly || isAdmin)
-    : NAV_ITEMS
+    : topLevelItems
 
-  const allGroups = [...NAV_ITEMS.filter(i => i.children), ADMIN_GROUP]
+  const allGroups = resolvedItems.filter(i => i.children)
 
   const groupHasActiveChild = (item) =>
     item.children?.some(c => location.pathname === c.to || location.pathname.startsWith(c.to + '/'))
@@ -158,7 +121,7 @@ export default function Sidebar() {
         setOpenGroups(prev => new Set(prev).add(item.key))
       }
     })
-  }, [location.pathname])
+  }, [location.pathname, structure])
 
   useEffect(() => {
     if (mobileView) setSidebarOpen(false)
@@ -322,6 +285,7 @@ export default function Sidebar() {
               key={item.key}
               item={item}
               t={t}
+              labelFor={labelFor}
               collapsed={collapsed}
               isOpen={openGroups.has(item.key)}
               isActive={groupHasActiveChild(item)}
@@ -333,27 +297,14 @@ export default function Sidebar() {
               key={item.to}
               to={item.to}
               end={item.end}
-              title={collapsed ? t(item.key) : undefined}
+              title={collapsed ? labelFor(item.key) : undefined}
               className={({ isActive }) => `sidebar-link ${collapsed ? 'justify-center' : ''} ${isActive ? 'active' : ''}`}
             >
               <span className="text-lg">{item.icon}</span>
-              {!collapsed && <span>{t(item.key)}</span>}
+              {!collapsed && <span>{labelFor(item.key)}</span>}
             </NavLink>
           )
         ))}
-
-        {/* Admin-only section */}
-        {engineer?.permission_level === 'admin' && (
-          <NavGroup
-            item={ADMIN_GROUP}
-            t={t}
-            collapsed={collapsed}
-            isOpen={openGroups.has(ADMIN_GROUP.key)}
-            isActive={groupHasActiveChild(ADMIN_GROUP)}
-            onToggle={() => toggleGroup(ADMIN_GROUP.key)}
-            isAdmin={isAdmin}
-          />
-        )}
       </nav>
 
       {/* Current user + logout */}
@@ -390,6 +341,13 @@ export default function Sidebar() {
                 className="flex-1 text-xs text-yellow-200 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg py-1.5 transition-colors"
               >
                 {t('sidebar.settings')}
+              </button>
+              <button
+                onClick={() => navigate('/menu-customizer')}
+                className="px-2 text-xs text-yellow-200 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg py-1.5 transition-colors"
+                title={t('sidebar.menuCustomizer')}
+              >
+                🧩
               </button>
               <button
                 onClick={() => { logout(); navigate('/login') }}

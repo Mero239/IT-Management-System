@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { departmentsApi, organizationsApi, branchesApi, ticketsApi, API_BASE } from '../api/client'
+import { departmentsApi, organizationsApi, branchesApi, ticketsApi, ticketCategoriesApi, API_BASE } from '../api/client'
 import { BRAND_TAGLINE } from '../constants'
 
 async function getWaConfig() {
@@ -46,14 +46,6 @@ const STEPS = [
   { id: 1, title: 'معلوماتك',   icon: '👤' },
   { id: 2, title: 'المشكلة',    icon: '💬' },
   { id: 3, title: 'الأولوية',   icon: '⚡' },
-]
-
-const CATEGORIES = [
-  { value: 'network',            label: 'مشكلة شبكة',      icon: '🌐' },
-  { value: 'laptop_maintenance', label: 'صيانة لاب توب',   icon: '💻' },
-  { value: 'internet',           label: 'انترنت بيقطع',    icon: '📶' },
-  { value: 'printing',           label: 'مشكلة طباعة',     icon: '🖨️' },
-  { value: 'other',              label: 'أخرى',            icon: '❓' },
 ]
 
 const MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024 // 2MB
@@ -152,6 +144,7 @@ export default function NewTicket() {
   const [kbLoading, setKbLoading]     = useState(false)
   const [kbDismissed, setKbDismissed] = useState(false)
   const [prefillAsset, setPrefillAsset] = useState(null) // { id, name } — from a device's QR code
+  const [categories, setCategories] = useState([])
   const topRef                  = useRef()
   const lookupTimer             = useRef()
 
@@ -159,15 +152,12 @@ export default function NewTicket() {
     departmentsApi.list().then(r => setDepts(r.data)).catch(() => {})
     organizationsApi.list().then(r => setOrgs(r.data)).catch(() => {})
     branchesApi.list().then(r => setBranches(r.data)).catch(() => {})
+    ticketCategoriesApi.list().then(r => setCategories(r.data)).catch(() => {})
     getWaConfig().then(cfg => { if (cfg?.whatsapp_phone) setWaConfig(cfg) })
 
     // A device's QR code links here with ?asset=<id>&category=<slug> pre-filled
     const params = new URLSearchParams(window.location.search)
     const assetId = params.get('asset')
-    const category = params.get('category')
-    if (category && CATEGORIES.some(c => c.value === category)) {
-      setForm(f => ({ ...f, category }))
-    }
     if (assetId) {
       setForm(f => ({ ...f, asset_id: assetId }))
       fetch(`${API_BASE}/assets/${assetId}`)
@@ -176,6 +166,16 @@ export default function NewTicket() {
         .catch(() => {})
     }
   }, [])
+
+  // A device's QR code links here with ?category=<slug> pre-filled — apply it
+  // once the dynamic category list has loaded, so we only accept a known value.
+  useEffect(() => {
+    if (!categories.length) return
+    const category = new URLSearchParams(window.location.search).get('category')
+    if (category && categories.some(c => c.value === category)) {
+      setForm(f => ({ ...f, category }))
+    }
+  }, [categories])
 
   /* KB self-service suggestions while typing the problem title (step 2) */
   useEffect(() => {
@@ -646,7 +646,7 @@ export default function NewTicket() {
             {/* Category */}
             <Input label="نوع المشكلة">
               <div className="grid grid-cols-2 gap-2.5">
-                {CATEGORIES.map(c => (
+                {categories.map(c => (
                   <button key={c.value} type="button"
                     onClick={() => set('category', form.category === c.value ? '' : c.value)}
                     className={`flex items-center gap-2.5 p-3 rounded-2xl border-2 text-start transition-all ${
@@ -733,7 +733,7 @@ export default function NewTicket() {
                 { icon: '👤', label: form.requester_name },
                 { icon: '📧', label: form.requester_email },
                 { icon: '💬', label: form.title },
-                form.category && { icon: CATEGORIES.find(c => c.value === form.category)?.icon, label: CATEGORIES.find(c => c.value === form.category)?.label },
+                form.category && { icon: categories.find(c => c.value === form.category)?.icon, label: categories.find(c => c.value === form.category)?.label },
                 form.organization_id && { icon: '🏢', label: organizations.find(o => String(o.id) === String(form.organization_id))?.name },
                 form.branch_id && { icon: '📍', label: branches.find(b => String(b.id) === String(form.branch_id))?.name },
                 attachment && { icon: '📎', label: attachment.name },

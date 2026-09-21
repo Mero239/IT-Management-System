@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ticketsApi, departmentsApi, engineersApi, organizationsApi, branchesApi, assetsApi } from '../api/client'
+import { ticketsApi, departmentsApi, engineersApi, organizationsApi, branchesApi, assetsApi, ticketCategoriesApi } from '../api/client'
 import Modal from '../components/Modal'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
@@ -33,8 +33,6 @@ const emptyForm = {
   priority: 'medium', status: 'open', assigned_to: '', resolution: '',
 }
 
-const CATEGORIES = ['network', 'laptop_maintenance', 'internet', 'printing', 'other']
-
 export default function Tickets() {
   const { t } = useLanguage()
   const navigate = useNavigate()
@@ -44,6 +42,7 @@ export default function Tickets() {
   const [branches, setBranches] = useState([])
   const [assets, setAssets] = useState([])
   const [engineers, setEngineers] = useState([])
+  const [categories, setCategories] = useState([])
   const [filter, setFilter] = useState({ status: '', priority: '', date_from: '', date_to: '' })
   const [dateOpen, setDateOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -75,6 +74,7 @@ export default function Tickets() {
   useEffect(() => { branchesApi.list().then((r) => setBranches(r.data)) }, [])
   useEffect(() => { assetsApi.list().then((r) => setAssets(r.data)) }, [])
   useEffect(() => { engineersApi.list().then((r) => setEngineers(r.data)) }, [])
+  useEffect(() => { ticketCategoriesApi.list().then((r) => setCategories(r.data)) }, [])
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setError(''); setModal(true) }
   const openEdit = (item) => {
@@ -400,7 +400,7 @@ export default function Tickets() {
             <label className="form-label">{t('tickets.form.category')}</label>
             <select className="form-select" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
               <option value="">{t('tickets.form.none')}</option>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{t(`category.${c}`)}</option>)}
+              {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </div>
           <div>

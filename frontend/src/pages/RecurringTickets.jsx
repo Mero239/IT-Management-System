@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { recurringTicketsApi, departmentsApi, organizationsApi, branchesApi, engineersApi } from '../api/client'
+import { recurringTicketsApi, departmentsApi, organizationsApi, branchesApi, engineersApi, ticketCategoriesApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import Modal from '../components/Modal'
 import Header from '../components/Header'
@@ -15,11 +15,6 @@ function AdminGuard({ children }) {
   return children
 }
 
-const CATEGORIES = ['network', 'laptop_maintenance', 'internet', 'printing', 'other']
-const CATEGORY_LABELS = {
-  network: '🌐 مشكلة شبكة', laptop_maintenance: '💻 صيانة لاب توب',
-  internet: '📶 انترنت بيقطع', printing: '🖨️ مشكلة طباعة', other: '❓ أخرى',
-}
 const PRIORITIES = ['low', 'medium', 'high', 'critical']
 const PRIORITY_LABELS = { low: 'منخفضة', medium: 'متوسطة', high: 'عالية', critical: 'حرجة' }
 const FREQUENCIES = ['daily', 'weekly', 'monthly']
@@ -38,6 +33,7 @@ export default function RecurringTickets() {
   const [organizations, setOrganizations] = useState([])
   const [branches, setBranches] = useState([])
   const [engineers, setEngineers] = useState([])
+  const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -56,7 +52,10 @@ export default function RecurringTickets() {
     organizationsApi.list().then(r => setOrganizations(r.data))
     branchesApi.list().then(r => setBranches(r.data))
     engineersApi.list().then(r => setEngineers(r.data))
+    ticketCategoriesApi.list().then(r => setCategories(r.data))
   }, [])
+
+  const categoryLabel = Object.fromEntries(categories.map(c => [c.value, `${c.icon} ${c.label}`]))
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setError(''); setModal(true) }
   const openEdit = (item) => {
@@ -144,7 +143,7 @@ export default function RecurringTickets() {
                   <tr key={item.id} className="hover:bg-slate-50/50">
                     <td className="table-td font-medium text-slate-800">{item.title}</td>
                     <td className="table-td text-slate-500 text-xs">{scheduleLabel(item)}</td>
-                    <td className="table-td text-slate-500 text-xs">{item.category ? CATEGORY_LABELS[item.category] : '—'}</td>
+                    <td className="table-td text-slate-500 text-xs">{item.category ? categoryLabel[item.category] : '—'}</td>
                     <td className="table-td text-slate-500 text-xs">{item.assigned_to || '—'}</td>
                     <td className="table-td text-slate-500 text-xs">{item.last_created_at ? new Date(item.last_created_at).toLocaleDateString() : '—'}</td>
                     <td className="table-td">
@@ -184,7 +183,7 @@ export default function RecurringTickets() {
               <label className="form-label">نوع المشكلة</label>
               <select className="form-select" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
                 <option value="">— بدون —</option>
-                {CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
+                {categories.map(c => <option key={c.value} value={c.value}>{c.icon} {c.label}</option>)}
               </select>
             </div>
             <div>

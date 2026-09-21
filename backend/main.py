@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
-from routes import assets, requests, tickets, departments, reports, import_excel, email_agent as email_agent_router, engineers, notifications, auth as auth_router, channels as channels_router, monitor as monitor_router, employees as employees_router, mailboxes as mailboxes_router, licensed_software as licensed_software_router, agreements as agreements_router, ticket_routing as ticket_routing_router, organizations as organizations_router, branches as branches_router, ticket_reports as ticket_reports_router, canned_responses as canned_responses_router, recurring_tickets as recurring_tickets_router
+from routes import assets, requests, tickets, departments, reports, import_excel, email_agent as email_agent_router, engineers, notifications, auth as auth_router, channels as channels_router, monitor as monitor_router, employees as employees_router, mailboxes as mailboxes_router, licensed_software as licensed_software_router, agreements as agreements_router, ticket_routing as ticket_routing_router, organizations as organizations_router, branches as branches_router, ticket_reports as ticket_reports_router, canned_responses as canned_responses_router, recurring_tickets as recurring_tickets_router, ticket_categories as ticket_categories_router, nav_config as nav_config_router, tasks as tasks_router
 from services.email_agent import agent as email_agent, load_config as email_load_config
 from services.telegram_bot import bot as telegram_bot, load_config as tg_load_config
 from services.monitor import monitor as monitor_service, load_config as mon_load_config
@@ -81,6 +81,9 @@ app.include_router(branches_router.router, prefix="/api")
 app.include_router(ticket_reports_router.router, prefix="/api")
 app.include_router(canned_responses_router.router, prefix="/api")
 app.include_router(recurring_tickets_router.router, prefix="/api")
+app.include_router(ticket_categories_router.router, prefix="/api")
+app.include_router(nav_config_router.router, prefix="/api")
+app.include_router(tasks_router.router, prefix="/api")
 
 
 @app.get("/")

@@ -6,6 +6,18 @@ export const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 const api = axios.create({ baseURL: API_BASE })
 
+export const navConfigApi = {
+  get: () => api.get('/nav-config/'),
+  save: (sections, labels) => api.post('/nav-config/', { sections, labels }),
+  reset: () => api.delete('/nav-config/'),
+}
+
+export const ticketCategoriesApi = {
+  list: () => api.get('/ticket-categories/'),
+  create: (data) => api.post('/ticket-categories/', data),
+  delete: (id) => api.delete(`/ticket-categories/${id}`),
+}
+
 export const departmentsApi = {
   list: () => api.get('/departments/'),
   create: (data) => api.post('/departments/', data),
@@ -114,6 +126,13 @@ export const cannedResponsesApi = {
   create: (data) => api.post('/canned-responses/', data),
   update: (id, data) => api.put(`/canned-responses/${id}`, data),
   delete: (id) => api.delete(`/canned-responses/${id}`),
+}
+
+export const tasksApi = {
+  list: (params) => api.get('/tasks/', { params }),
+  create: (data) => api.post('/tasks/', data),
+  update: (id, data) => api.put(`/tasks/${id}`, data),
+  delete: (id) => api.delete(`/tasks/${id}`),
 }
 
 export const recurringTicketsApi = {
