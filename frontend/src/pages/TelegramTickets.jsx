@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ticketsApi, engineersApi } from '../api/client'
+import { ticketsApi, engineersApi, API_BASE } from '../api/client'
 import { useLanguage } from '../context/LanguageContext'
 import StatCard from '../components/StatCardCompact'
 
@@ -236,7 +236,7 @@ export default function TelegramTickets() {
 
   const loadBotStatus = useCallback(async () => {
     try {
-      const r = await fetch('http://localhost:8000/api/channels/telegram/status', {
+      const r = await fetch(`${API_BASE}/channels/telegram/status`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('it_token') || ''}` }
       })
       if (r.ok) setBotStatus(await r.json())

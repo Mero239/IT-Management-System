@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../context/LanguageContext'
+import { API_BASE } from '../api/client'
 
-const API = 'http://localhost:8000/api'
+const API = API_BASE
 
 function token() {
   return localStorage.getItem('it_token') || ''

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ticketsApi, engineersApi, departmentsApi } from '../api/client'
+import { ticketsApi, engineersApi, departmentsApi, API_BASE } from '../api/client'
 import { useLanguage } from '../context/LanguageContext'
 import StatCard from '../components/StatCardCompact'
 
@@ -432,7 +432,7 @@ export default function WhatsAppTickets() {
 
   const loadWaConfig = useCallback(async () => {
     try {
-      const r = await fetch('http://localhost:8000/api/channels/public')
+      const r = await fetch(`${API_BASE}/channels/public`)
       if (r.ok) setWaConfig(await r.json())
     } catch {}
   }, [])

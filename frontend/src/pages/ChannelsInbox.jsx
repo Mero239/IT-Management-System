@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ticketsApi, engineersApi } from '../api/client'
+import { ticketsApi, engineersApi, API_BASE } from '../api/client'
 import { useLanguage } from '../context/LanguageContext'
 import api from '../api/client'
 
@@ -331,7 +331,7 @@ export default function ChannelsInbox() {
   const loadStatuses = useCallback(async () => {
     try {
       const [botRes, agentRes] = await Promise.all([
-        fetch('http://localhost:8000/api/channels/telegram/status', {
+        fetch(`${API_BASE}/channels/telegram/status`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('it_token') || ''}` }
         }).then(r => r.ok ? r.json() : null),
         api.get('/email-agent/status').then(r => r.data).catch(() => null),

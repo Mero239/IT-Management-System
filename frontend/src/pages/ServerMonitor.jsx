@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useLanguage } from '../context/LanguageContext'
+import { API_BASE } from '../api/client'
 
-const API = 'http://localhost:8000/api'
+const API = API_BASE
 
 function authHeader() {
   return { Authorization: `Bearer ${localStorage.getItem('it_token') || ''}`, 'Content-Type': 'application/json' }
