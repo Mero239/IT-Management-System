@@ -10,8 +10,37 @@ from services.monitor import monitor as monitor_service, load_config as mon_load
 from services.ticket_escalation import service as escalation_service
 from services.recurring_tickets import service as recurring_service
 from services.ticket_autoclose import service as autoclose_service
+from services.task_reminders import service as task_reminder_service
 
 Base.metadata.create_all(bind=engine)
+
+
+def _auto_add_missing_columns():
+    """create_all() only creates brand-new tables — it never ALTERs an
+    existing one, so a column added to a model after its table already
+    exists in production silently breaks every query against it (exactly
+    what happened when last_reminded_at was added to engineer_tasks). This
+    keeps existing tables in sync with the models on every startup, without
+    needing a real migration tool for what is, so far, always a plain
+    ADD COLUMN. Renames/drops/type or constraint changes still need care by
+    hand — this only ever adds what's missing."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    with engine.begin() as conn:
+        for table_name, table in Base.metadata.tables.items():
+            if table_name not in existing_tables:
+                continue
+            existing_cols = {c["name"] for c in inspector.get_columns(table_name)}
+            for col in table.columns:
+                if col.name in existing_cols:
+                    continue
+                col_type = col.type.compile(engine.dialect)
+                conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col.name}" {col_type}'))
+
+
+_auto_add_missing_columns()
 
 
 @asynccontextmanager
@@ -32,6 +61,7 @@ async def lifespan(app: FastAPI):
     escalation_service.start()
     recurring_service.start()
     autoclose_service.start()
+    task_reminder_service.start()
     yield
     email_agent.stop()
     telegram_bot.stop()
@@ -39,6 +69,7 @@ async def lifespan(app: FastAPI):
     escalation_service.stop()
     recurring_service.stop()
     autoclose_service.stop()
+    task_reminder_service.stop()
 
 
 app = FastAPI(

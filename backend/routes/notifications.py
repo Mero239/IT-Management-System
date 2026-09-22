@@ -20,6 +20,7 @@ def list_notifications(unread_only: bool = False, limit: int = 50, db: Session =
             "engineer_email": r.engineer_email,
             "ticket_id": r.ticket_id,
             "ticket_title": r.ticket_title,
+            "task_id": r.task_id,
             "message": r.message,
             "is_read": r.is_read,
             "email_sent": r.email_sent,

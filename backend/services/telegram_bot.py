@@ -19,6 +19,14 @@ DEFAULT_CONFIG = {
     "success_ar": "✅ تم إنشاء تذكرة رقم #{id}\n\nسيتواصل معك فريق الدعم الفني قريباً.",
     "success_en": "✅ Ticket #{id} created successfully!\n\nOur support team will contact you soon.",
     "language": "ar",
+    # WhatsApp Business Cloud API — turns inbound 1:1 messages to the
+    # business number into tickets, the same way the Telegram bot does.
+    # WhatsApp groups aren't supported by the official API at all, so this
+    # only ever covers direct messages.
+    "whatsapp_business_enabled": False,
+    "whatsapp_access_token": "",
+    "whatsapp_phone_number_id": "",
+    "whatsapp_verify_token": "",
 }
 
 PRIORITY_LABELS = {

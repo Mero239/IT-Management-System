@@ -19,6 +19,7 @@ class TaskCreate(TaskBase):
 
 class TaskOut(TaskBase):
     id: int
+    last_reminded_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
@@ -26,6 +27,7 @@ class TaskOut(TaskBase):
 
 class TicketCategoryCreate(BaseModel):
     label: str
+    label_en: Optional[str] = None
     icon: Optional[str] = "🏷️"
 
 
@@ -33,6 +35,7 @@ class TicketCategoryOut(BaseModel):
     id: int
     value: str
     label: str
+    label_en: Optional[str] = None
     icon: Optional[str] = "🏷️"
     created_at: Optional[datetime] = None
 

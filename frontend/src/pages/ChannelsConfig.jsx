@@ -245,7 +245,12 @@ function WhatsAppTab({ t }) {
     whatsapp_phone:      '',
     whatsapp_message_ar: 'مرحباً، أحتاج مساعدة فنية. مشكلتي: ',
     whatsapp_message_en: 'Hello, I need technical support. My issue: ',
+    whatsapp_business_enabled: false,
+    whatsapp_access_token: '',
+    whatsapp_phone_number_id: '',
+    whatsapp_verify_token: '',
   })
+  const [tokenPreview, setTokenPreview] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved,  setSaved]  = useState(false)
 
@@ -255,7 +260,12 @@ function WhatsAppTab({ t }) {
         whatsapp_phone:      cfg.whatsapp_phone || '',
         whatsapp_message_ar: cfg.whatsapp_message_ar || 'مرحباً، أحتاج مساعدة فنية. مشكلتي: ',
         whatsapp_message_en: cfg.whatsapp_message_en || 'Hello, I need technical support. My issue: ',
+        whatsapp_business_enabled: cfg.whatsapp_business_enabled || false,
+        whatsapp_access_token: '',
+        whatsapp_phone_number_id: cfg.whatsapp_phone_number_id || '',
+        whatsapp_verify_token: cfg.whatsapp_verify_token || '',
       })
+      setTokenPreview(cfg.whatsapp_access_token_preview || '')
     }).catch(() => {})
   }, [])
 
@@ -267,6 +277,8 @@ function WhatsAppTab({ t }) {
       setTimeout(() => setSaved(false), 2000)
     } finally { setSaving(false) }
   }
+
+  const webhookUrl = `${window.location.origin}/api/channels/whatsapp/webhook`
 
   const phone   = form.whatsapp_phone.replace(/\D/g, '')
   const message = encodeURIComponent(form.whatsapp_message_ar)
@@ -336,10 +348,74 @@ function WhatsAppTab({ t }) {
           </div>
         )}
 
-        <button onClick={save} disabled={saving || !phone} className="btn-primary w-full !py-2.5 disabled:opacity-40">
-          {saving ? t('ch.saving') : saved ? t('ch.saved') : t('ch.waSave')}
-        </button>
       </SectionCard>
+
+      <SectionCard title={t('ch.waBizTitle')} icon="🤖">
+        <p className="text-xs text-slate-400">{t('ch.waBizHint')}</p>
+        <StepList steps={[t('ch.waBizStep1'), t('ch.waBizStep2'), t('ch.waBizStep3'), t('ch.waBizStep4')]} />
+
+        <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+          <span className="text-sm font-medium text-slate-700">{t('ch.waBizEnable')}</span>
+          <button
+            onClick={() => setForm(f => ({ ...f, whatsapp_business_enabled: !f.whatsapp_business_enabled }))}
+            className={`relative w-11 h-6 rounded-full transition-colors ${form.whatsapp_business_enabled ? 'bg-green-500' : 'bg-slate-300'}`}
+          >
+            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${form.whatsapp_business_enabled ? 'right-1' : 'left-1'}`} />
+          </button>
+        </div>
+
+        <div>
+          <label className="form-label">{t('ch.waAccessToken')}</label>
+          <input
+            type="password"
+            className="form-input !text-sm font-mono"
+            placeholder={tokenPreview || t('ch.waAccessTokenPlh')}
+            value={form.whatsapp_access_token}
+            onChange={e => setForm(f => ({ ...f, whatsapp_access_token: e.target.value }))}
+            dir="ltr"
+          />
+        </div>
+
+        <div>
+          <label className="form-label">{t('ch.waPhoneNumberId')}</label>
+          <input
+            className="form-input !text-sm font-mono"
+            placeholder={t('ch.waPhoneNumberIdPlh')}
+            value={form.whatsapp_phone_number_id}
+            onChange={e => setForm(f => ({ ...f, whatsapp_phone_number_id: e.target.value }))}
+            dir="ltr"
+          />
+        </div>
+
+        <div>
+          <label className="form-label">{t('ch.waVerifyToken')}</label>
+          <input
+            className="form-input !text-sm font-mono"
+            placeholder={t('ch.waVerifyTokenPlh')}
+            value={form.whatsapp_verify_token}
+            onChange={e => setForm(f => ({ ...f, whatsapp_verify_token: e.target.value }))}
+            dir="ltr"
+          />
+        </div>
+
+        <div>
+          <p className="form-label">{t('ch.waWebhookUrl')}</p>
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+            <code className="text-sm text-slate-700 font-mono break-all flex-1">{webhookUrl}</code>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(webhookUrl)}
+              className="btn-secondary !text-xs !px-2 !py-1 shrink-0"
+            >
+              📋
+            </button>
+          </div>
+        </div>
+      </SectionCard>
+
+      <button onClick={save} disabled={saving} className="btn-primary w-full !py-2.5 disabled:opacity-40">
+        {saving ? t('ch.saving') : saved ? t('ch.saved') : t('ch.waSave')}
+      </button>
     </div>
   )
 }

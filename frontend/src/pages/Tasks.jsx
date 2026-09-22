@@ -3,6 +3,7 @@ import { tasksApi, engineersApi } from '../api/client'
 import Modal from '../components/Modal'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
+import { useAuth } from '../context/AuthContext'
 
 const FREQUENCIES = ['daily', 'weekly', 'monthly', 'one_time']
 
@@ -15,6 +16,8 @@ const emptyForm = {
 
 export default function Tasks() {
   const { t, language } = useLanguage()
+  const { engineer } = useAuth()
+  const isAdmin = engineer?.permission_level === 'admin'
   const [items, setItems] = useState([])
   const [engineers, setEngineers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -36,7 +39,11 @@ export default function Tasks() {
   useEffect(() => { load() }, [filters])
   useEffect(() => { engineersApi.list().then(r => setEngineers(r.data)) }, [])
 
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setError(''); setModal(true) }
+  const openAdd = () => {
+    setEditing(null)
+    setForm({ ...emptyForm, assigned_to: isAdmin ? '' : (engineer?.name || '') })
+    setError(''); setModal(true)
+  }
   const openEdit = (item) => {
     setEditing(item)
     setForm({ ...item, task_date: item.task_date?.slice(0, 10) || todayStr(), task_type: item.task_type || '', assigned_to: item.assigned_to || '' })
@@ -67,18 +74,31 @@ export default function Tasks() {
 
   const typeSuggestions = t('tasks.typeSuggestions')
 
+  // One-time: overdue once its fixed date has passed while still pending.
+  // Recurring (daily/weekly/monthly): overdue once it's already been
+  // reminded before and a new cycle is due again — i.e. the previous
+  // occurrence was never marked done.
+  const isOverdue = (item) => {
+    if (item.status === 'done') return false
+    if (item.frequency === 'one_time') return item.task_date.slice(0, 10) < todayStr()
+    return !!item.last_reminded_at
+  }
+
   return (
     <div className="space-y-4">
       <Header title={t('tasks.title')} subtitle={t('tasks.subtitle')} />
 
       <div className="card !p-4 flex flex-wrap gap-3 items-end">
-        <div>
-          <label className="form-label">{t('tasks.filter.engineer')}</label>
-          <select className="form-select !text-sm" value={filters.assigned_to} onChange={e => setFilters(f => ({ ...f, assigned_to: e.target.value }))}>
-            <option value="">{t('tasks.filter.all')}</option>
-            {engineers.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
-          </select>
-        </div>
+        {isAdmin && (
+          <div>
+            <label className="form-label">{t('tasks.filter.engineer')}</label>
+            <select className="form-select !text-sm" value={filters.assigned_to} onChange={e => setFilters(f => ({ ...f, assigned_to: e.target.value }))}>
+              <option value="">{t('tasks.filter.all')}</option>
+              {engineer?.name && <option value={engineer.name}>{t('tasks.filter.myTasks')}</option>}
+              {engineers.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label className="form-label">{t('tasks.filter.frequency')}</label>
           <select className="form-select !text-sm" value={filters.frequency} onChange={e => setFilters(f => ({ ...f, frequency: e.target.value }))}>
@@ -108,7 +128,7 @@ export default function Tasks() {
               <tr>
                 {[
                   t('tasks.col.task'), t('tasks.col.type'), t('tasks.col.frequency'), t('tasks.col.date'),
-                  t('tasks.col.engineer'), t('common.status'), t('common.actions'),
+                  ...(isAdmin ? [t('tasks.col.engineer')] : []), t('common.status'), t('common.actions'),
                 ].map(h => (
                   <th key={h} className="table-th">{h}</th>
                 ))}
@@ -116,19 +136,28 @@ export default function Tasks() {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {items.map(item => (
-                <tr key={item.id} className="hover:bg-slate-50/50">
+                <tr key={item.id} className={`hover:bg-slate-50/50 ${isOverdue(item) ? 'bg-red-50/50' : ''}`}>
                   <td className="table-td font-medium text-slate-800">{item.title}</td>
                   <td className="table-td text-slate-500 text-xs">{item.task_type || '—'}</td>
                   <td className="table-td text-slate-500 text-xs">{t(`tasks.frequency.${item.frequency}`) || item.frequency}</td>
                   <td className="table-td text-slate-500 text-xs">{new Date(item.task_date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
-                  <td className="table-td text-slate-500 text-xs">{item.assigned_to || '—'}</td>
+                  {isAdmin && <td className="table-td text-slate-500 text-xs">{item.assigned_to || '—'}</td>}
                   <td className="table-td">
-                    <button
-                      onClick={() => handleToggleStatus(item)}
-                      className={`text-xs font-bold px-2.5 py-1 rounded-full ${item.status === 'done' ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-500'}`}
-                    >
-                      {item.status === 'done' ? `✅ ${t('tasks.status.done')}` : `⏳ ${t('tasks.status.pending')}`}
-                    </button>
+                    {isOverdue(item) ? (
+                      <button
+                        onClick={() => handleToggleStatus(item)}
+                        className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-700"
+                      >
+                        ⚠️ {t('tasks.status.overdue')}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleToggleStatus(item)}
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full ${item.status === 'done' ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-500'}`}
+                      >
+                        {item.status === 'done' ? `✅ ${t('tasks.status.done')}` : `⏳ ${t('tasks.status.pending')}`}
+                      </button>
+                    )}
                   </td>
                   <td className="table-td">
                     <div className="flex gap-1.5">
@@ -180,10 +209,14 @@ export default function Tasks() {
             </div>
             <div>
               <label className="form-label">{t('tasks.form.engineer')}</label>
-              <select className="form-select" value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}>
-                <option value="">{t('tasks.form.none')}</option>
-                {engineers.filter(e => e.active === 'true').map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
-              </select>
+              {isAdmin ? (
+                <select className="form-select" value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}>
+                  <option value="">{t('tasks.form.none')}</option>
+                  {engineers.filter(e => e.active === 'true').map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+                </select>
+              ) : (
+                <input className="form-input bg-slate-50 text-slate-500" value={engineer?.name || ''} disabled />
+              )}
             </div>
             <div className="col-span-2">
               <label className="form-label">{t('tasks.form.status')}</label>

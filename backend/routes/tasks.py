@@ -11,6 +11,13 @@ VALID_FREQUENCIES = ["daily", "weekly", "monthly", "one_time"]
 VALID_STATUSES = ["pending", "done"]
 
 
+# Tasks are personal: an engineer only ever sees/edits their own (matched by
+# name — same convention as assigned_to everywhere else in this app). Only
+# admins can see and manage everyone's.
+def _is_admin(engineer):
+    return engineer.permission_level == "admin"
+
+
 @router.get("/", response_model=List[schemas.TaskOut])
 def list_tasks(
     assigned_to: Optional[str] = None,
@@ -20,8 +27,11 @@ def list_tasks(
     engineer=Depends(get_current_engineer),
 ):
     q = db.query(models.EngineerTask)
-    if assigned_to:
-        q = q.filter(models.EngineerTask.assigned_to == assigned_to)
+    if _is_admin(engineer):
+        if assigned_to:
+            q = q.filter(models.EngineerTask.assigned_to == assigned_to)
+    else:
+        q = q.filter(models.EngineerTask.assigned_to == engineer.name)
     if frequency:
         q = q.filter(models.EngineerTask.frequency == frequency)
     if status:
@@ -35,7 +45,10 @@ def create_task(data: schemas.TaskCreate, db: Session = Depends(get_db), enginee
         raise HTTPException(400, f"frequency must be one of {VALID_FREQUENCIES}")
     if data.status not in VALID_STATUSES:
         raise HTTPException(400, f"status must be one of {VALID_STATUSES}")
-    obj = models.EngineerTask(**data.model_dump())
+    payload = data.model_dump()
+    if not _is_admin(engineer):
+        payload["assigned_to"] = engineer.name
+    obj = models.EngineerTask(**payload)
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -51,7 +64,12 @@ def update_task(task_id: int, data: schemas.TaskCreate, db: Session = Depends(ge
     obj = db.query(models.EngineerTask).filter(models.EngineerTask.id == task_id).first()
     if not obj:
         raise HTTPException(404, "المهمة غير موجودة")
-    for k, v in data.model_dump().items():
+    if not _is_admin(engineer) and obj.assigned_to != engineer.name:
+        raise HTTPException(403, "غير مصرح لك بتعديل مهام مهندس آخر")
+    payload = data.model_dump()
+    if not _is_admin(engineer):
+        payload["assigned_to"] = engineer.name
+    for k, v in payload.items():
         setattr(obj, k, v)
     db.commit()
     db.refresh(obj)
@@ -63,6 +81,8 @@ def delete_task(task_id: int, db: Session = Depends(get_db), engineer=Depends(ge
     obj = db.query(models.EngineerTask).filter(models.EngineerTask.id == task_id).first()
     if not obj:
         raise HTTPException(404, "المهمة غير موجودة")
+    if not _is_admin(engineer) and obj.assigned_to != engineer.name:
+        raise HTTPException(403, "غير مصرح لك بحذف مهام مهندس آخر")
     db.delete(obj)
     db.commit()
     return {"message": "تم الحذف بنجاح"}

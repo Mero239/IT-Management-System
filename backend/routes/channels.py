@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from routes.auth import get_current_engineer
 
@@ -7,13 +7,21 @@ router = APIRouter(prefix="/channels", tags=["channels"])
 
 @router.get("/public")
 def public_config():
-    """No auth — returns only the WhatsApp contact info for the public new-ticket form."""
-    from services.telegram_bot import load_config
+    """No auth — WhatsApp contact info + the Telegram bot's @username (if the
+    bot is enabled) for the public new-ticket form's "contact us" buttons."""
+    from services.telegram_bot import load_config, bot
     cfg = load_config()
+    telegram_username = ""
+    if cfg.get("enabled") and cfg.get("token"):
+        try:
+            telegram_username = bot.get_bot_info(cfg["token"]).get("username") or ""
+        except Exception:
+            pass
     return {
         "whatsapp_phone":      cfg.get("whatsapp_phone", ""),
         "whatsapp_message_ar": cfg.get("whatsapp_message_ar", "مرحباً، أحتاج مساعدة فنية. مشكلتي: "),
         "whatsapp_message_en": cfg.get("whatsapp_message_en", "Hello, I need technical support. My issue: "),
+        "telegram_username":   telegram_username,
     }
 
 
@@ -28,6 +36,10 @@ class TelegramConfig(BaseModel):
     whatsapp_phone: str | None = None
     whatsapp_message_ar: str | None = None
     whatsapp_message_en: str | None = None
+    whatsapp_business_enabled: bool | None = None
+    whatsapp_access_token: str | None = None
+    whatsapp_phone_number_id: str | None = None
+    whatsapp_verify_token: str | None = None
 
 
 @router.get("/config")
@@ -36,10 +48,17 @@ def get_config(engineer=Depends(get_current_engineer)):
         raise HTTPException(403, "Admin only")
     from services.telegram_bot import load_config
     cfg = load_config()
-    # Don't expose full token in response — just a masked preview
+
+    def _mask(v: str) -> str:
+        return (v[:6] + "…" + v[-4:]) if len(v) > 10 else ("*" * len(v) if v else "")
+
     token = cfg.get("token", "")
-    masked = (token[:6] + "…" + token[-4:]) if len(token) > 10 else ("*" * len(token) if token else "")
-    return {**cfg, "token_preview": masked, "token": ""}
+    wa_token = cfg.get("whatsapp_access_token", "")
+    return {
+        **cfg,
+        "token_preview": _mask(token), "token": "",
+        "whatsapp_access_token_preview": _mask(wa_token), "whatsapp_access_token": "",
+    }
 
 
 @router.post("/config")
@@ -50,9 +69,10 @@ def save_config(body: TelegramConfig, engineer=Depends(get_current_engineer)):
     current = load_config()
     updates = body.model_dump(exclude_none=True)
 
-    # If token is empty string in update, keep existing token
-    if "token" in updates and updates["token"] == "":
-        del updates["token"]
+    # If a token is submitted as an empty string, keep the existing one
+    for key in ("token", "whatsapp_access_token"):
+        if key in updates and updates[key] == "":
+            del updates[key]
 
     merged = {**current, **updates}
     save_config(merged)
@@ -128,4 +148,48 @@ def stop_bot(engineer=Depends(get_current_engineer)):
     cfg["enabled"] = False
     save_config(cfg)
     bot.stop()
+    return {"ok": True}
+
+
+@router.get("/whatsapp/status")
+def whatsapp_status(engineer=Depends(get_current_engineer)):
+    if engineer.permission_level != "admin":
+        raise HTTPException(403, "Admin only")
+    from services.telegram_bot import load_config
+    cfg = load_config()
+    return {
+        "enabled": cfg.get("whatsapp_business_enabled", False),
+        "has_token": bool(cfg.get("whatsapp_access_token")),
+        "has_phone_number_id": bool(cfg.get("whatsapp_phone_number_id")),
+        "has_verify_token": bool(cfg.get("whatsapp_verify_token")),
+    }
+
+
+# ── WhatsApp Cloud API webhook — both intentionally public (no auth): Meta
+# calls these directly, it can't send our login token. GET is the one-time
+# verification handshake done from the App Dashboard; POST is every
+# subsequent message/status event.
+@router.get("/whatsapp/webhook")
+def whatsapp_webhook_verify(request: Request):
+    from services.telegram_bot import load_config
+    from services.whatsapp_bot import verify_webhook
+    cfg = load_config()
+    params = request.query_params
+    challenge = verify_webhook(
+        params.get("hub.mode", ""), params.get("hub.verify_token", ""),
+        params.get("hub.challenge", ""), cfg,
+    )
+    if challenge is None:
+        raise HTTPException(403, "Verification failed")
+    return Response(content=challenge, media_type="text/plain")
+
+
+@router.post("/whatsapp/webhook")
+async def whatsapp_webhook_receive(request: Request):
+    from services.telegram_bot import load_config
+    from services.whatsapp_bot import handle_webhook_payload
+    cfg = load_config()
+    if cfg.get("whatsapp_business_enabled"):
+        payload = await request.json()
+        handle_webhook_payload(payload, cfg)
     return {"ok": True}

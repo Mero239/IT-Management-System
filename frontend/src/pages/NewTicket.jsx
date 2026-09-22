@@ -153,7 +153,7 @@ export default function NewTicket() {
     organizationsApi.list().then(r => setOrgs(r.data)).catch(() => {})
     branchesApi.list().then(r => setBranches(r.data)).catch(() => {})
     ticketCategoriesApi.list().then(r => setCategories(r.data)).catch(() => {})
-    getWaConfig().then(cfg => { if (cfg?.whatsapp_phone) setWaConfig(cfg) })
+    getWaConfig().then(cfg => { if (cfg?.whatsapp_phone || cfg?.telegram_username) setWaConfig(cfg) })
 
     // A device's QR code links here with ?asset=<id>&category=<slug> pre-filled
     const params = new URLSearchParams(window.location.search)
@@ -395,7 +395,16 @@ export default function NewTicket() {
             <p className="text-yellow-200 text-xs">{BRAND_TAGLINE}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {waConfig && (
+            {waConfig?.telegram_username && (
+              <a
+                href={`https://t.me/${waConfig.telegram_username}`}
+                target="_blank" rel="noreferrer"
+                className="text-xs bg-sky-500 hover:bg-sky-600 text-white rounded-xl px-2.5 py-1.5 font-semibold flex items-center gap-1"
+              >
+                ✈️ تيليجرام
+              </a>
+            )}
+            {waConfig?.whatsapp_phone && (
               <a
                 href={`https://wa.me/${waConfig.whatsapp_phone.replace(/\D/g,'')}?text=${encodeURIComponent(waConfig.whatsapp_message_ar)}`}
                 target="_blank" rel="noreferrer"

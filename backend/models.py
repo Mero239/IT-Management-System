@@ -12,11 +12,11 @@ SLA_HOURS_BY_PRIORITY = {"critical": 4, "high": 24, "medium": 72, "low": 168}
 # below) — admins can add more from the UI without touching code.
 TICKET_CATEGORIES = ["network", "laptop_maintenance", "internet", "printing", "other"]
 TICKET_CATEGORIES_SEED = [
-    {"value": "network",            "label": "مشكلة شبكة",    "icon": "🌐"},
-    {"value": "laptop_maintenance", "label": "صيانة لاب توب", "icon": "💻"},
-    {"value": "internet",           "label": "انترنت بيقطع",  "icon": "📶"},
-    {"value": "printing",           "label": "مشكلة طباعة",   "icon": "🖨️"},
-    {"value": "other",              "label": "أخرى",          "icon": "❓"},
+    {"value": "network",            "label": "مشكلة شبكة",    "label_en": "Network Issue",       "icon": "🌐"},
+    {"value": "laptop_maintenance", "label": "صيانة لاب توب", "label_en": "Laptop Maintenance",  "icon": "💻"},
+    {"value": "internet",           "label": "انترنت بيقطع",  "label_en": "Internet Connectivity", "icon": "📶"},
+    {"value": "printing",           "label": "مشكلة طباعة",   "label_en": "Printing Issue",      "icon": "🖨️"},
+    {"value": "other",              "label": "أخرى",          "label_en": "Other",               "icon": "❓"},
 ]
 
 
@@ -33,6 +33,7 @@ class EngineerTask(Base):
     task_date = Column(DateTime(timezone=True), nullable=False)
     assigned_to = Column(String(200), nullable=True)
     status = Column(String(20), default="pending")        # pending | done
+    last_reminded_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -52,7 +53,8 @@ class TicketCategory(Base):
     __tablename__ = "ticket_categories"
     id = Column(Integer, primary_key=True, index=True)
     value = Column(String(50), unique=True, nullable=False)
-    label = Column(String(100), nullable=False)
+    label = Column(String(100), nullable=False)          # Arabic (primary) label
+    label_en = Column(String(100), nullable=True)         # English label — falls back to `label` if unset
     icon = Column(String(10), default="🏷️")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -153,6 +155,7 @@ class SupportTicket(Base):
     source = Column(String(50), default="manual")        # manual, email, telegram
     source_email_id = Column(String(500), nullable=True)
     telegram_chat_id = Column(Integer, nullable=True)     # set when source == "telegram", used to reply to the requester
+    whatsapp_from = Column(String(30), nullable=True)     # set when source == "whatsapp", the sender's wa_id
     attachment_filename = Column(String(300), nullable=True)       # name on disk
     attachment_original_name = Column(String(300), nullable=True)
     attachment_size = Column(Integer, nullable=True)
@@ -170,7 +173,7 @@ class SupportTicket(Base):
     organization = relationship("Organization")
     branch = relationship("Branch")
     asset = relationship("Asset")
-    comments = relationship("TicketComment", back_populates="ticket", order_by="TicketComment.created_at")
+    comments = relationship("TicketComment", back_populates="ticket", order_by="TicketComment.created_at", cascade="all, delete-orphan")
 
     @property
     def sla_hours(self) -> int:
@@ -282,8 +285,9 @@ class Notification(Base):
     id = Column(Integer, primary_key=True, index=True)
     engineer_name = Column(String(200), nullable=False)
     engineer_email = Column(String(200), nullable=False)
-    ticket_id = Column(Integer, nullable=False)
-    ticket_title = Column(String(500), nullable=False)
+    ticket_id = Column(Integer, nullable=True)
+    ticket_title = Column(String(500), nullable=True)
+    task_id = Column(Integer, nullable=True)
     message = Column(String(500))
     is_read = Column(String(5), default="false")   # "true" | "false"
     email_sent = Column(String(5), default="false")
