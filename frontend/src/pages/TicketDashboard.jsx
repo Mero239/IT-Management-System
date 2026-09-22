@@ -25,6 +25,8 @@ function MiniBreakdown({ title, data, total, labelFor, noDataLabel }) {
   )
 }
 
+function isoDate(d) { return d.toISOString().slice(0, 10) }
+
 export default function TicketDashboard() {
   const { t, language } = useLanguage()
   const navigate = useNavigate()
@@ -32,10 +34,18 @@ export default function TicketDashboard() {
   const [loading, setLoading] = useState(true)
   const [categories, setCategories] = useState([])
 
+  const dateTo = new Date()
+  const dateFrom = new Date(dateTo)
+  dateFrom.setDate(dateFrom.getDate() - 7)
+  const dateFromStr = isoDate(dateFrom)
+  const dateToStr = isoDate(dateTo)
+
   useEffect(() => {
-    ticketReportsApi.data({}).then(r => setData(r.data)).finally(() => setLoading(false))
+    ticketReportsApi.data({ date_from: dateFromStr, date_to: dateToStr }).then(r => setData(r.data)).finally(() => setLoading(false))
     ticketCategoriesApi.list().then(r => setCategories(r.data)).catch(() => {})
   }, [])
+
+  const goToTickets = (status) => navigate(status ? `/tickets?status=${status}` : '/tickets')
 
   if (loading || !data) return (
     <div className="flex items-center justify-center h-64">
@@ -67,21 +77,27 @@ export default function TicketDashboard() {
     <div className="space-y-6">
       <Header title={t('ticketDashboard.title')} subtitle={t('ticketDashboard.subtitle')} />
 
-      <div className="flex items-center gap-2 px-1">
-        <span className="relative flex h-3 w-3">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+      <div className="flex items-center gap-3 px-1 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+          </span>
+          <span className="text-sm text-yellow-600 font-semibold">{t('ticketDashboard.live')}</span>
+        </div>
+        <span className="text-xs text-slate-400">·</span>
+        <span className="text-xs text-slate-500">
+          {t('ticketDashboard.dataRange').replace('{from}', dateFromStr).replace('{to}', dateToStr)}
         </span>
-        <span className="text-sm text-yellow-600 font-semibold">{t('ticketDashboard.live')}</span>
       </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard title={t('ticketReports.stat.total')} value={data.total} icon="🎫" color="blue" />
-        <StatCard title={t('status.open')} value={data.by_status?.open || 0} icon="🔴" color="red" />
-        <StatCard title={t('status.in_progress')} value={data.by_status?.in_progress || 0} icon="🟡" color="yellow" />
+        <StatCard title={t('ticketReports.stat.total')} value={data.total} icon="🎫" color="blue" onClick={() => goToTickets()} />
+        <StatCard title={t('status.open')} value={data.by_status?.open || 0} icon="🔴" color="red" onClick={() => goToTickets('open')} />
+        <StatCard title={t('status.in_progress')} value={data.by_status?.in_progress || 0} icon="🟡" color="yellow" onClick={() => goToTickets('in_progress')} />
         <StatCard title={t('ticketReports.stat.slaBreached')} value={data.by_sla_status?.breached || 0} icon="⚠️" color="red" />
-        <StatCard title={t('status.resolved')} value={data.by_status?.resolved || 0} icon="✅" color="green" />
-        <StatCard title={t('status.closed')} value={data.by_status?.closed || 0} icon="🔒" color="slate" />
+        <StatCard title={t('status.resolved')} value={data.by_status?.resolved || 0} icon="✅" color="green" onClick={() => goToTickets('resolved')} />
+        <StatCard title={t('status.closed')} value={data.by_status?.closed || 0} icon="🔒" color="slate" onClick={() => goToTickets('closed')} />
         <StatCard title={t('ticketReports.stat.avgResolution')} value={data.avg_resolution_hours ?? '—'} icon="⏱️" color="slate" />
         <StatCard title={t('ticketReports.csat.avgRating')} value={data.avg_csat_rating ?? '—'} icon="⭐" color="purple" subtitle={data.csat_count ? `${data.csat_count}` : ''} />
       </div>

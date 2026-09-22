@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ticketsApi, departmentsApi, engineersApi, organizationsApi, branchesApi, assetsApi, ticketCategoriesApi } from '../api/client'
 import Modal from '../components/Modal'
 import Header from '../components/Header'
@@ -38,6 +38,7 @@ export default function Tickets() {
   const { t, language } = useLanguage()
   const { engineer } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [items, setItems] = useState([])
   const [departments, setDepartments] = useState([])
   const [organizations, setOrganizations] = useState([])
@@ -45,7 +46,12 @@ export default function Tickets() {
   const [assets, setAssets] = useState([])
   const [engineers, setEngineers] = useState([])
   const [categories, setCategories] = useState([])
-  const [filter, setFilter] = useState({ status: '', priority: '', assigned_to: '', date_from: '', date_to: '' })
+  const [filter, setFilter] = useState({
+    status: searchParams.get('status') || '',
+    priority: searchParams.get('priority') || '',
+    assigned_to: searchParams.get('assigned_to') || '',
+    date_from: '', date_to: '',
+  })
   const [dateOpen, setDateOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
