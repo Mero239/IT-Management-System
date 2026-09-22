@@ -37,6 +37,10 @@ PRIORITY_QUESTION = {
     "ar": "ما مدى أهمية هذه المشكلة؟",
     "en": "What is the priority of this issue?",
 }
+CATEGORY_QUESTION = {
+    "ar": "ما نوع المشكلة؟",
+    "en": "What type of problem is this?",
+}
 
 
 def load_config() -> dict:
@@ -115,7 +119,47 @@ class TelegramBot:
             payload["reply_markup"] = reply_markup
         self._call(token, "sendMessage", **payload)
 
-    def _create_ticket(self, text: str, name: str, username: str, priority: str, chat_id: int) -> int | None:
+    def _get_categories(self, lang: str) -> list:
+        from database import SessionLocal
+        import models
+        db = SessionLocal()
+        try:
+            rows = db.query(models.TicketCategory).order_by(models.TicketCategory.id).all()
+            return [
+                {"value": r.value, "label": (r.label_en or r.label) if lang == "en" else r.label, "icon": r.icon or "🏷️"}
+                for r in rows
+            ]
+        finally:
+            db.close()
+
+    def _categories_keyboard(self, categories: list) -> dict:
+        rows, row = [], []
+        for c in categories:
+            row.append({"text": f"{c['icon']} {c['label']}", "callback_data": f"category:{c['value']}"})
+            if len(row) == 2:
+                rows.append(row)
+                row = []
+        if row:
+            rows.append(row)
+        return {"inline_keyboard": rows}
+
+    def _ask_priority(self, token: str, chat_id: int, lang: str):
+        lbl = PRIORITY_LABELS.get(lang, PRIORITY_LABELS["ar"])
+        keyboard = {
+            "inline_keyboard": [
+                [
+                    {"text": lbl["critical"], "callback_data": "priority:critical"},
+                    {"text": lbl["high"],     "callback_data": "priority:high"},
+                ],
+                [
+                    {"text": lbl["medium"],   "callback_data": "priority:medium"},
+                    {"text": lbl["low"],      "callback_data": "priority:low"},
+                ],
+            ]
+        }
+        self._send(token, chat_id, PRIORITY_QUESTION.get(lang, PRIORITY_QUESTION["ar"]), reply_markup=keyboard)
+
+    def _create_ticket(self, text: str, name: str, username: str, priority: str, chat_id: int, category: str | None = None) -> int | None:
         from database import SessionLocal
         import models
         from services.ticket_routing import find_routed_engineer
@@ -130,6 +174,10 @@ class TelegramBot:
                 telegram_chat_id=chat_id,
                 assigned_to=find_routed_engineer(title, text, db),
             )
+            # category comes from a button built off the live DB list, but re-validate
+            # in case it was deleted between the question being asked and answered
+            if category and db.query(models.TicketCategory).filter(models.TicketCategory.value == category).first():
+                ticket.category = category
             # set priority safely
             if priority in ("critical", "high", "medium", "low"):
                 ticket.priority = priority
@@ -245,6 +293,11 @@ class TelegramBot:
                     self._send(token, chat_id, msg)
                 return
 
+            if data.startswith("category:") and chat_id in self._pending:
+                self._pending[chat_id]["category"] = data.split(":", 1)[1]
+                self._ask_priority(token, chat_id, lang)
+                return
+
             if data.startswith("priority:") and chat_id in self._pending:
                 priority = data.split(":", 1)[1]
                 pending  = self._pending.pop(chat_id)
@@ -253,6 +306,7 @@ class TelegramBot:
                     name=pending["name"],
                     username=pending["username"],
                     priority=priority,
+                    category=pending.get("category"),
                     chat_id=chat_id,
                 )
                 if ticket_id:
@@ -281,22 +335,13 @@ class TelegramBot:
             self._send(token, chat_id, cfg.get(key, DEFAULT_CONFIG[key]))
             return
 
-        # Store message, ask for priority
+        # Store message, ask for problem type first, then priority
         self._pending[chat_id] = {"text": text, "name": name, "username": username}
-        lbl = PRIORITY_LABELS.get(lang, PRIORITY_LABELS["ar"])
-        keyboard = {
-            "inline_keyboard": [
-                [
-                    {"text": lbl["critical"], "callback_data": "priority:critical"},
-                    {"text": lbl["high"],     "callback_data": "priority:high"},
-                ],
-                [
-                    {"text": lbl["medium"],   "callback_data": "priority:medium"},
-                    {"text": lbl["low"],      "callback_data": "priority:low"},
-                ],
-            ]
-        }
-        self._send(token, chat_id, PRIORITY_QUESTION.get(lang, PRIORITY_QUESTION["ar"]), reply_markup=keyboard)
+        categories = self._get_categories(lang)
+        if categories:
+            self._send(token, chat_id, CATEGORY_QUESTION.get(lang, CATEGORY_QUESTION["ar"]), reply_markup=self._categories_keyboard(categories))
+        else:
+            self._ask_priority(token, chat_id, lang)
 
 
 bot = TelegramBot()

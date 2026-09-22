@@ -252,6 +252,7 @@ export default function NewTicket() {
         e.requester_email = 'صيغة البريد غير صحيحة'
     }
     if (s === 2) {
+      if (categories.length > 0 && !form.category) e.category = 'اختر نوع المشكلة'
       if (!form.title.trim()) e.title = 'عنوان المشكلة مطلوب'
     }
     setErrors(e)
@@ -570,6 +571,24 @@ export default function NewTicket() {
               </div>
             )}
 
+            {/* Category — asked first so the problem type drives everything else */}
+            <Input label="نوع المشكلة" required error={errors.category}>
+              <div className="grid grid-cols-2 gap-2.5">
+                {categories.map(c => (
+                  <button key={c.value} type="button"
+                    onClick={() => set('category', form.category === c.value ? '' : c.value)}
+                    className={`flex items-center gap-2.5 p-3 rounded-2xl border-2 text-start transition-all ${
+                      form.category === c.value
+                        ? 'border-yellow-400 bg-yellow-50 text-yellow-800'
+                        : 'border-slate-200 bg-white text-slate-600'
+                    }`}>
+                    <span className="text-2xl shrink-0">{c.icon}</span>
+                    <span className="text-sm font-semibold">{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </Input>
+
             <Input label="عنوان المشكلة" required error={errors.title}
               hint="جملة قصيرة تصف المشكلة">
               <input
@@ -651,24 +670,6 @@ export default function NewTicket() {
                 ))}
               </div>
             </div>
-
-            {/* Category */}
-            <Input label="نوع المشكلة">
-              <div className="grid grid-cols-2 gap-2.5">
-                {categories.map(c => (
-                  <button key={c.value} type="button"
-                    onClick={() => set('category', form.category === c.value ? '' : c.value)}
-                    className={`flex items-center gap-2.5 p-3 rounded-2xl border-2 text-start transition-all ${
-                      form.category === c.value
-                        ? 'border-yellow-400 bg-yellow-50 text-yellow-800'
-                        : 'border-slate-200 bg-white text-slate-600'
-                    }`}>
-                    <span className="text-2xl shrink-0">{c.icon}</span>
-                    <span className="text-sm font-semibold">{c.label}</span>
-                  </button>
-                ))}
-              </div>
-            </Input>
 
             {/* Attachment */}
             <Input label="إرفاق صورة (اختياري)" hint="بحد أقصى 2 ميجابايت" error={errors.attachment}>
