@@ -32,6 +32,7 @@ export default function TicketDashboard() {
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [categories, setCategories] = useState([])
 
   const dateTo = new Date()
@@ -41,11 +42,20 @@ export default function TicketDashboard() {
   const dateToStr = isoDate(dateTo)
 
   useEffect(() => {
-    ticketReportsApi.data({ date_from: dateFromStr, date_to: dateToStr }).then(r => setData(r.data)).finally(() => setLoading(false))
+    ticketReportsApi.data({ date_from: dateFromStr, date_to: dateToStr })
+      .then(r => setData(r.data))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
     ticketCategoriesApi.list().then(r => setCategories(r.data)).catch(() => {})
   }, [])
 
   const goToTickets = (status) => navigate(status ? `/tickets?status=${status}` : '/tickets')
+
+  if (loadError) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-red-400 text-lg">{t('common.error')}</div>
+    </div>
+  )
 
   if (loading || !data) return (
     <div className="flex items-center justify-center h-64">

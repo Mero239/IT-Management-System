@@ -1,5 +1,6 @@
 import json
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -19,9 +20,17 @@ def _apply_filters(
 ):
     q = db.query(models.SupportTicket)
     if date_from:
-        q = q.filter(models.SupportTicket.created_at >= date_from)
+        try:
+            df = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            q = q.filter(models.SupportTicket.created_at >= df)
+        except ValueError:
+            pass
     if date_to:
-        q = q.filter(models.SupportTicket.created_at <= date_to + " 23:59:59")
+        try:
+            dt_ = datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+            q = q.filter(models.SupportTicket.created_at < dt_)
+        except ValueError:
+            pass
     if status:
         q = q.filter(models.SupportTicket.status == status)
     if priority:
