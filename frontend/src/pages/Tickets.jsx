@@ -4,6 +4,7 @@ import { ticketsApi, departmentsApi, engineersApi, organizationsApi, branchesApi
 import Modal from '../components/Modal'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
+import { useAuth } from '../context/AuthContext'
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical']
 const STATUSES = ['open', 'in_progress', 'resolved', 'closed']
@@ -34,7 +35,8 @@ const emptyForm = {
 }
 
 export default function Tickets() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const { engineer } = useAuth()
   const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [departments, setDepartments] = useState([])
@@ -43,7 +45,7 @@ export default function Tickets() {
   const [assets, setAssets] = useState([])
   const [engineers, setEngineers] = useState([])
   const [categories, setCategories] = useState([])
-  const [filter, setFilter] = useState({ status: '', priority: '', date_from: '', date_to: '' })
+  const [filter, setFilter] = useState({ status: '', priority: '', assigned_to: '', date_from: '', date_to: '' })
   const [dateOpen, setDateOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
@@ -64,6 +66,7 @@ export default function Tickets() {
     if (filter.status) params.status = filter.status
     if (filter.priority) params.priority = filter.priority
     if (filter.date_from) params.date_from = filter.date_from
+    if (filter.assigned_to) params.assigned_to = filter.assigned_to
     if (filter.date_to) params.date_to = filter.date_to
     ticketsApi.list(params).then((r) => setItems(r.data)).finally(() => setLoading(false))
   }
@@ -128,7 +131,12 @@ export default function Tickets() {
   const handleStatus = async (id, status) => { await ticketsApi.updateStatus(id, status); load() }
   const handleDelete = async (id) => {
     if (!confirm(t('tickets.deleteConfirm'))) return
-    await ticketsApi.delete(id); load()
+    try {
+      await ticketsApi.delete(id)
+      load()
+    } catch (e) {
+      alert(e.response?.data?.detail || t('common.error'))
+    }
   }
 
   return (
@@ -166,6 +174,12 @@ export default function Tickets() {
         <select className="form-select w-auto" value={filter.priority} onChange={(e) => setFilter((f) => ({ ...f, priority: e.target.value }))}>
           <option value="">{t('tickets.allPriorities')}</option>
           {PRIORITIES.map((k) => <option key={k} value={k}>{t(`priority.${k}`)}</option>)}
+        </select>
+
+        <select className="form-select w-auto" value={filter.assigned_to} onChange={(e) => setFilter((f) => ({ ...f, assigned_to: e.target.value }))}>
+          <option value="">{t('tickets.allEngineers')}</option>
+          {engineer?.name && <option value={engineer.name}>{t('tickets.myTicketsOption')}</option>}
+          {engineers.filter(e => e.active === 'true').map((e) => <option key={e.id} value={e.name}>{e.name}</option>)}
         </select>
 
         {/* Date quick filter — icon-triggered popover */}
@@ -270,7 +284,9 @@ export default function Tickets() {
                       👤 {t('tickets.assign.btn')}
                     </button>
                     <button onClick={() => openEdit(item)} className="btn-secondary !text-xs !px-3 !py-1.5">{t('common.edit')}</button>
-                    <button onClick={() => handleDelete(item.id)} className="btn-danger">{t('common.delete')}</button>
+                    {engineer?.email?.toLowerCase() === 'amr.eisa@mobica.net' && (
+                      <button onClick={() => handleDelete(item.id)} className="btn-danger">{t('common.delete')}</button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -400,7 +416,7 @@ export default function Tickets() {
             <label className="form-label">{t('tickets.form.category')}</label>
             <select className="form-select" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
               <option value="">{t('tickets.form.none')}</option>
-              {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              {categories.map((c) => <option key={c.value} value={c.value}>{language === 'en' ? (c.label_en || c.label) : c.label}</option>)}
             </select>
           </div>
           <div>

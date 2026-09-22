@@ -699,8 +699,13 @@ def delete_comment(ticket_id: int, comment_id: int, db: Session = Depends(get_db
     return {"message": "تم الحذف"}
 
 
+DELETE_TICKETS_ALLOWED_EMAIL = "amr.eisa@mobica.net"
+
+
 @router.delete("/{ticket_id}")
 def delete_ticket(ticket_id: int, db: Session = Depends(get_db), _engineer=Depends(get_current_engineer)):
+    if (_engineer.email or "").strip().lower() != DELETE_TICKETS_ALLOWED_EMAIL:
+        raise HTTPException(status_code=403, detail="حذف التذاكر مقصور على مسؤول النظام فقط")
     obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="التذكرة غير موجودة")

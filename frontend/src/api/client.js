@@ -15,6 +15,7 @@ export const navConfigApi = {
 export const ticketCategoriesApi = {
   list: () => api.get('/ticket-categories/'),
   create: (data) => api.post('/ticket-categories/', data),
+  update: (id, data) => api.put(`/ticket-categories/${id}`, data),
   delete: (id) => api.delete(`/ticket-categories/${id}`),
 }
 

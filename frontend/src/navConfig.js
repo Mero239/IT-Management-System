@@ -54,9 +54,8 @@ export const NAV_CATALOG = {
 // The out-of-the-box arrangement — also what "Reset to default" restores.
 export const DEFAULT_STRUCTURE = [
   { key: 'nav.dashboard' },
-  { key: 'nav.tasks' },
   { key: 'nav.ticketingSystem', children: [
-    'nav.tickets', 'nav.sla', 'nav.inbox', 'nav.telegramTickets', 'nav.whatsappTickets', 'nav.emailTickets',
+    'nav.tasks', 'nav.tickets', 'nav.sla', 'nav.inbox', 'nav.telegramTickets', 'nav.whatsappTickets', 'nav.emailTickets',
     'nav.myTickets', 'nav.knowledgeBase', 'nav.ticketReports', 'nav.cannedResponses', 'nav.supportAgreement',
     'nav.adminDashboard', 'nav.adminTicketLog', 'nav.adminTicketRouting', 'nav.adminRecurringTickets',
     'nav.adminTicketCategories', 'nav.adminChannels', 'nav.emailAgent',
@@ -71,8 +70,7 @@ export const DEFAULT_STRUCTURE = [
   { key: 'nav.reports' },
   { key: 'nav.import' },
   { key: 'nav.swreport' },
-  { key: 'nav.itTeam' },
-  { key: 'sidebar.adminSection', children: ['nav.adminReports', 'nav.adminEngineers', 'nav.adminMonitor'] },
+  { key: 'sidebar.adminSection', children: ['nav.itTeam', 'nav.adminReports', 'nav.adminEngineers', 'nav.adminMonitor'] },
 ]
 
 // A saved (per-user) structure is a snapshot from whenever it was last

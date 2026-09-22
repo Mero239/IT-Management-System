@@ -173,6 +173,7 @@ function BulkStatusModal({ count, onApply, onClose }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AdminTicketLog() {
   const { engineer: me } = useAuth()
+  const canDelete = me?.email?.toLowerCase() === 'amr.eisa@mobica.net'
   const navigate = useNavigate()
   const [urlParams, setUrlParams] = useSearchParams()
 
@@ -600,10 +601,12 @@ export default function AdminTicketLog() {
               className="text-xs bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
               🔄 تغيير الحالة
             </button>
-            <button onClick={handleBulkDelete}
-              className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
-              🗑 حذف
-            </button>
+            {canDelete && (
+              <button onClick={handleBulkDelete}
+                className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
+                🗑 حذف
+              </button>
+            )}
           </div>
           <button onClick={() => setSelected(new Set())}
             className="text-xs text-slate-500 hover:text-slate-700 mr-auto">إلغاء التحديد</button>
@@ -746,8 +749,10 @@ export default function AdminTicketLog() {
                           title="تفاصيل" className="p-1.5 rounded-lg hover:bg-yellow-100 text-yellow-600 text-sm transition-colors">👁</button>
                         <button onClick={() => setAssignTarget(ticket)}
                           title="تعيين" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 text-sm transition-colors">👤</button>
-                        <button onClick={() => handleDelete(ticket.id)}
-                          title="حذف" className="p-1.5 rounded-lg hover:bg-red-100 text-red-500 text-sm transition-colors">🗑</button>
+                        {canDelete && (
+                          <button onClick={() => handleDelete(ticket.id)}
+                            title="حذف" className="p-1.5 rounded-lg hover:bg-red-100 text-red-500 text-sm transition-colors">🗑</button>
+                        )}
                       </div>
                     </td>
                   </tr>

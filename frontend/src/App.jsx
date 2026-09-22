@@ -73,7 +73,7 @@ function RequireAuth({ children }) {
 const TICKETS_ONLY_ALLOWED_PREFIXES = [
   '/', '/tickets', '/sla', '/inbox', '/telegram-tickets', '/whatsapp-tickets',
   '/email-tickets', '/engineer-dashboard', '/knowledge-base', '/settings',
-  '/ticket-reports', '/canned-responses', '/ticket-dashboard',
+  '/ticket-reports', '/canned-responses', '/ticket-dashboard', '/tasks', '/menu-customizer',
 ]
 
 function TicketsOnlyGuard({ children }) {
