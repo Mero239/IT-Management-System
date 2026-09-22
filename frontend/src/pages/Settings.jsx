@@ -390,7 +390,7 @@ function PreferencesSection() {
           </h4>
           <div className="flex gap-3">
             {[
-              { code: 'ar', label: 'العربية', flag: '🇸🇦', sub: 'Arabic · RTL' },
+              { code: 'ar', label: 'العربية', flag: '🇪🇬', sub: 'Arabic · RTL' },
               { code: 'en', label: 'English',  flag: '🇬🇧', sub: 'English · LTR' },
             ].map(lang => (
               <button key={lang.code} onClick={() => setLanguage(lang.code)}

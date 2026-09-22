@@ -36,7 +36,7 @@ function BreakdownCard({ title, data, total, labelFor, noDataLabel }) {
 }
 
 export default function TicketReports() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const navigate = useNavigate()
   const [filters, setFilters] = useState({ ...emptyFilters })
   const [data, setData] = useState(null)
@@ -99,7 +99,7 @@ export default function TicketReports() {
   const priorityLabel = { low: t('priority.low'), medium: t('priority.medium'), high: t('priority.high'), critical: t('priority.critical') }
   const statusLabel = { open: t('status.open'), in_progress: t('status.in_progress'), resolved: t('status.resolved'), closed: t('status.closed') }
   const categoryLabel = {
-    ...Object.fromEntries(categories.map(c => [c.value, c.label])),
+    ...Object.fromEntries(categories.map(c => [c.value, language === 'en' ? (c.label_en || c.label) : c.label])),
     uncategorized: t('ticketReports.category.uncategorized'),
   }
   const slaLabel = {
@@ -202,7 +202,7 @@ export default function TicketReports() {
             <label className="form-label">{t('ticketReports.filter.category')}</label>
             <select className="form-select" value={filters.category} onChange={e => set('category', e.target.value)}>
               <option value="">{t('ticketReports.filter.all')}</option>
-              {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              {categories.map(c => <option key={c.value} value={c.value}>{language === 'en' ? (c.label_en || c.label) : c.label}</option>)}
             </select>
           </div>
           <div>

@@ -2,7 +2,7 @@ import { useCurrency, CURRENCIES } from '../context/CurrencyContext'
 import { useLanguage } from '../context/LanguageContext'
 const LANGUAGES = {
   en: { label: 'EN', flag: '🇺🇸', name: 'English' },
-  ar: { label: 'AR', flag: '🇸🇦', name: 'العربية' },
+  ar: { label: 'AR', flag: '🇪🇬', name: 'العربية' },
 }
 
 export default function Header({ title, subtitle }) {

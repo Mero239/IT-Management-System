@@ -26,7 +26,7 @@ function MiniBreakdown({ title, data, total, labelFor, noDataLabel }) {
 }
 
 export default function TicketDashboard() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -46,7 +46,7 @@ export default function TicketDashboard() {
   const priorityLabel = { low: t('priority.low'), medium: t('priority.medium'), high: t('priority.high'), critical: t('priority.critical') }
   const statusLabel = { open: t('status.open'), in_progress: t('status.in_progress'), resolved: t('status.resolved'), closed: t('status.closed') }
   const categoryLabel = {
-    ...Object.fromEntries(categories.map(c => [c.value, c.label])),
+    ...Object.fromEntries(categories.map(c => [c.value, language === 'en' ? (c.label_en || c.label) : c.label])),
     uncategorized: t('ticketReports.category.uncategorized'),
   }
   const slaLabel = {

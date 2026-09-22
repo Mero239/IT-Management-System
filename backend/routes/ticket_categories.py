@@ -39,8 +39,21 @@ def create_category(body: schemas.TicketCategoryCreate, db: Session = Depends(ge
         suffix += 1
         value = f"{base_value}_{suffix}"
 
-    obj = models.TicketCategory(value=value, label=body.label, icon=body.icon or "🏷️")
+    obj = models.TicketCategory(value=value, label=body.label, label_en=body.label_en or None, icon=body.icon or "🏷️")
     db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.put("/{category_id}", response_model=schemas.TicketCategoryOut)
+def update_category(category_id: int, body: schemas.TicketCategoryCreate, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    obj = db.query(models.TicketCategory).filter(models.TicketCategory.id == category_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="نوع المشكلة غير موجود")
+    obj.label = body.label
+    obj.label_en = body.label_en or None
+    obj.icon = body.icon or "🏷️"
     db.commit()
     db.refresh(obj)
     return obj
