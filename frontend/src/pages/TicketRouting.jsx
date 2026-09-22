@@ -6,7 +6,7 @@ import Modal from '../components/Modal'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
 
-const emptyForm = { keywords: '', engineer_name: '', engineer_email: '', active: 'true', priority_order: 0 }
+const emptyForm = { keywords: '', engineer_name: '', engineer_email: '', notify_name: '', notify_email: '', active: 'true', priority_order: 0 }
 
 function AdminGuard({ children }) {
   const { engineer } = useAuth()
@@ -50,6 +50,18 @@ export default function TicketRouting() {
       .map((n) => engineers.find((e) => e.name === n)?.email)
       .filter(Boolean)
     setForm((f) => ({ ...f, engineer_name: next.join(', '), engineer_email: emails.join(', ') }))
+  }
+
+  const selectedNotifyNames = form.notify_name ? form.notify_name.split(',').map((n) => n.trim()).filter(Boolean) : []
+
+  const toggleNotifyEngineer = (name) => {
+    const next = selectedNotifyNames.includes(name)
+      ? selectedNotifyNames.filter((n) => n !== name)
+      : [...selectedNotifyNames, name]
+    const emails = next
+      .map((n) => engineers.find((e) => e.name === n)?.email)
+      .filter(Boolean)
+    setForm((f) => ({ ...f, notify_name: next.join(', '), notify_email: emails.join(', ') }))
   }
 
   const handleSave = async () => {
@@ -110,6 +122,9 @@ export default function TicketRouting() {
                   <td className="table-td font-medium text-slate-800">
                     👤 {item.engineer_name.split(',').map((n) => n.trim()).filter(Boolean).join(' / ')}
                     {item.engineer_email && <p className="text-xs text-slate-400 font-normal">{item.engineer_email}</p>}
+                    {item.notify_name && (
+                      <p className="text-xs text-slate-400 font-normal">🔔 {t('routing.col.notifyOnly')}: {item.notify_name.split(',').map((n) => n.trim()).filter(Boolean).join(' / ')}</p>
+                    )}
                   </td>
                   <td className="table-td">
                     <button onClick={() => handleToggleActive(item)}
@@ -149,6 +164,21 @@ export default function TicketRouting() {
                       selectedNames.includes(e.name) ? 'bg-yellow-50' : 'hover:bg-slate-50'
                     }`}>
                     <input type="checkbox" checked={selectedNames.includes(e.name)} onChange={() => toggleEngineer(e.name)} />
+                    <span className="text-sm text-slate-700">{e.name} <span className="text-slate-400">({e.role})</span></span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="form-label">{t('routing.form.notify')}</label>
+              <p className="text-xs text-slate-400 mb-2">{t('routing.form.notifyHint')}</p>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto border border-slate-100 rounded-xl p-2">
+                {engineers.filter((e) => e.active === 'true').map((e) => (
+                  <label key={e.id}
+                    className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${
+                      selectedNotifyNames.includes(e.name) ? 'bg-yellow-50' : 'hover:bg-slate-50'
+                    }`}>
+                    <input type="checkbox" checked={selectedNotifyNames.includes(e.name)} onChange={() => toggleNotifyEngineer(e.name)} />
                     <span className="text-sm text-slate-700">{e.name} <span className="text-slate-400">({e.role})</span></span>
                   </label>
                 ))}

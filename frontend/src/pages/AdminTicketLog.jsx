@@ -2,50 +2,51 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ticketsApi, engineersApi, departmentsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 
 // ── config ────────────────────────────────────────────────────────────────────
 const STATUS_CFG = {
-  open:        { label: 'مفتوحة',      badge: 'bg-red-100 text-red-600',      dot: 'bg-red-500' },
-  in_progress: { label: 'قيد التنفيذ', badge: 'bg-amber-100 text-amber-700',  dot: 'bg-amber-400' },
-  resolved:    { label: 'محلولة',      badge: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500' },
-  closed:      { label: 'مغلقة',       badge: 'bg-slate-100 text-slate-500',   dot: 'bg-slate-400' },
+  open:        { badge: 'bg-red-100 text-red-600',      dot: 'bg-red-500' },
+  in_progress: { badge: 'bg-amber-100 text-amber-700',  dot: 'bg-amber-400' },
+  resolved:    { badge: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500' },
+  closed:      { badge: 'bg-slate-100 text-slate-500',   dot: 'bg-slate-400' },
 }
 const PRIORITY_CFG = {
-  critical: { label: 'حرجة',   badge: 'bg-red-100 text-red-700 font-semibold', dot: 'bg-red-500' },
-  high:     { label: 'عالية',  badge: 'bg-yellow-100 text-yellow-700',          dot: 'bg-yellow-400' },
-  medium:   { label: 'متوسطة', badge: 'bg-amber-100 text-amber-700',            dot: 'bg-amber-400' },
-  low:      { label: 'منخفضة', badge: 'bg-slate-100 text-slate-500',            dot: 'bg-slate-300' },
+  critical: { badge: 'bg-red-100 text-red-700 font-semibold', dot: 'bg-red-500' },
+  high:     { badge: 'bg-yellow-100 text-yellow-700',          dot: 'bg-yellow-400' },
+  medium:   { badge: 'bg-amber-100 text-amber-700',            dot: 'bg-amber-400' },
+  low:      { badge: 'bg-slate-100 text-slate-500',            dot: 'bg-slate-300' },
 }
 const STATUSES   = ['open','in_progress','resolved','closed']
 const PRIORITIES = ['critical','high','medium','low']
 const PAGE_SIZES = [10, 25, 50, 100]
 
 const QUICK = [
-  { label: 'الكل',        params: {} },
-  { label: 'مفتوحة',     params: { status: 'open' } },
-  { label: 'قيد التنفيذ',params: { status: 'in_progress' } },
-  { label: 'حرجة',       params: { priority: 'critical' } },
-  { label: 'غير معيّنة', params: { unassigned: true } },
-  { label: 'من البريد',  params: { source: 'email' } },
-  { label: 'محلولة',     params: { status: 'resolved' } },
+  { key: 'all',        params: {} },
+  { key: 'open',       params: { status: 'open' } },
+  { key: 'in_progress',params: { status: 'in_progress' } },
+  { key: 'critical',   params: { priority: 'critical' } },
+  { key: 'unassigned', params: { unassigned: true } },
+  { key: 'fromEmail',  params: { source: 'email' } },
+  { key: 'resolved',   params: { status: 'resolved' } },
 ]
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-function fmtDate(iso) {
+function fmtDate(iso, language) {
   if (!iso) return '—'
   return new Date(iso + (iso.includes('Z') ? '' : 'Z'))
-    .toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: '2-digit' })
+    .toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short', year: '2-digit' })
 }
-function fmtDatetime(iso) {
+function fmtDatetime(iso, language) {
   if (!iso) return '—'
+  const locale = language === 'ar' ? 'ar-EG' : 'en-US'
   const d = new Date(iso + (iso.includes('Z') ? '' : 'Z'))
-  return d.toLocaleDateString('ar-EG', { day:'2-digit', month:'2-digit', year:'2-digit' })
-    + ' ' + d.toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' })
+  return d.toLocaleDateString(locale, { day:'2-digit', month:'2-digit', year:'2-digit' })
+    + ' ' + d.toLocaleTimeString(locale, { hour:'2-digit', minute:'2-digit' })
 }
-function exportCSV(rows, filename) {
+function exportCSV(rows, filename, headers) {
   const keys = ['id','title','requester_name','requester_email','department','priority','status','assigned_to','source','created_at']
-  const labels = ['#','العنوان','الطالب','البريد','القسم','الأولوية','الحالة','المهندس','المصدر','التاريخ']
-  const csv = [labels.join(','), ...rows.map(r => keys.map(k => {
+  const csv = [headers.join(','), ...rows.map(r => keys.map(k => {
     const v = k === 'department' ? (r.department?.name || '') : (r[k] ?? '')
     return `"${String(v).replace(/"/g,'""')}"`
   }).join(','))].join('\n')
@@ -57,10 +58,10 @@ function exportCSV(rows, filename) {
 function Toast({ toasts }) {
   return (
     <div className="fixed bottom-6 left-6 z-50 flex flex-col gap-2">
-      {toasts.map(t => (
-        <div key={t.id} className={`px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium text-white transition-all animate-fadeIn
-          ${t.type === 'success' ? 'bg-yellow-600' : t.type === 'error' ? 'bg-red-500' : 'bg-slate-700'}`}>
-          {t.msg}
+      {toasts.map(ts => (
+        <div key={ts.id} className={`px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium text-white transition-all animate-fadeIn
+          ${ts.type === 'success' ? 'bg-yellow-600' : ts.type === 'error' ? 'bg-red-500' : 'bg-slate-700'}`}>
+          {ts.msg}
         </div>
       ))}
     </div>
@@ -85,10 +86,11 @@ function SortTh({ label, col, sort, onSort, className = '' }) {
 
 // ── Assign Modal ──────────────────────────────────────────────────────────────
 function AssignModal({ tickets, engineers, onAssign, onClose }) {
+  const { t } = useLanguage()
   const [selected, setSelected] = useState('')
   const [saving, setSaving] = useState(false)
   const isBulk = Array.isArray(tickets)
-  const label = isBulk ? `${tickets.length} تذاكر` : `#${tickets?.id} ${tickets?.title}`
+  const label = isBulk ? t('ticketLog.assignModal.ticketsCount').replace('{n}', tickets.length) : `#${tickets?.id} ${tickets?.title}`
 
   const handle = async () => {
     if (!selected) return
@@ -103,7 +105,7 @@ function AssignModal({ tickets, engineers, onAssign, onClose }) {
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 z-10">
         <div className="flex items-center gap-2 mb-1">
           <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
-          <h3 className="font-bold text-slate-800">تعيين مهندس</h3>
+          <h3 className="font-bold text-slate-800">{t('ticketLog.assignModal.title')}</h3>
         </div>
         <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mb-4 truncate">{label}</p>
         <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -125,9 +127,9 @@ function AssignModal({ tickets, engineers, onAssign, onClose }) {
         <div className="flex gap-2 mt-4 pt-3 border-t border-slate-100">
           <button onClick={handle} disabled={!selected || saving}
             className="btn-primary flex-1 justify-center disabled:opacity-50">
-            {saving ? '...' : '✅ تأكيد'}
+            {saving ? '...' : '✅ ' + t('ticketLog.assign')}
           </button>
-          <button onClick={onClose} className="btn-secondary">إلغاء</button>
+          <button onClick={onClose} className="btn-secondary">{t('common.cancel')}</button>
         </div>
       </div>
     </div>
@@ -136,6 +138,7 @@ function AssignModal({ tickets, engineers, onAssign, onClose }) {
 
 // ── BulkStatus Modal ──────────────────────────────────────────────────────────
 function BulkStatusModal({ count, onApply, onClose }) {
+  const { t } = useLanguage()
   const [status, setStatus] = useState('')
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -143,9 +146,9 @@ function BulkStatusModal({ count, onApply, onClose }) {
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xs p-5 z-10">
         <div className="flex items-center gap-2 mb-1">
           <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
-          <h3 className="font-bold text-slate-800">تغيير الحالة</h3>
+          <h3 className="font-bold text-slate-800">{t('ticketLog.bulkStatusModal.title')}</h3>
         </div>
-        <p className="text-xs text-slate-500 mb-4">{count} تذكرة محددة</p>
+        <p className="text-xs text-slate-500 mb-4">{t('ticketLog.selectedCount').replace('{n}', count)}</p>
         <div className="space-y-2">
           {STATUSES.map(s => {
             const cfg = STATUS_CFG[s]
@@ -154,7 +157,7 @@ function BulkStatusModal({ count, onApply, onClose }) {
                 className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-start
                   ${status === s ? 'border-yellow-500 bg-yellow-50' : 'border-slate-100 hover:border-slate-200'}`}>
                 <span className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
-                <span className="text-sm font-medium text-slate-700">{cfg.label}</span>
+                <span className="text-sm font-medium text-slate-700">{t(`status.${s}`)}</span>
                 {status === s && <span className="text-yellow-500 mr-auto">✓</span>}
               </button>
             )
@@ -162,8 +165,8 @@ function BulkStatusModal({ count, onApply, onClose }) {
         </div>
         <div className="flex gap-2 mt-4 pt-3 border-t border-slate-100">
           <button onClick={() => { if (status) onApply(status) }} disabled={!status}
-            className="btn-primary flex-1 justify-center disabled:opacity-50">تأكيد</button>
-          <button onClick={onClose} className="btn-secondary">إلغاء</button>
+            className="btn-primary flex-1 justify-center disabled:opacity-50">{t('common.confirm')}</button>
+          <button onClick={onClose} className="btn-secondary">{t('common.cancel')}</button>
         </div>
       </div>
     </div>
@@ -173,6 +176,7 @@ function BulkStatusModal({ count, onApply, onClose }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AdminTicketLog() {
   const { engineer: me } = useAuth()
+  const { t, language, setLanguage } = useLanguage()
   const canDelete = me?.email?.toLowerCase() === 'amr.eisa@mobica.net'
   const navigate = useNavigate()
   const [urlParams, setUrlParams] = useSearchParams()
@@ -205,8 +209,8 @@ export default function AdminTicketLog() {
   // ── toast helper ──
   const toast = useCallback((msg, type = 'success') => {
     const id = Date.now()
-    setToasts(t => [...t, { id, msg, type }])
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3000)
+    setToasts(ts => [...ts, { id, msg, type }])
+    setTimeout(() => setToasts(ts => ts.filter(x => x.id !== id)), 3000)
   }, [])
 
   // ── load data ──
@@ -272,7 +276,7 @@ export default function AdminTicketLog() {
   // ── selection ──
   const toggleAll = () => {
     if (selected.size === data.items.length) setSelected(new Set())
-    else setSelected(new Set(data.items.map(t => t.id)))
+    else setSelected(new Set(data.items.map(tk => tk.id)))
   }
   const toggleOne = (id) => setSelected(s => {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
@@ -285,7 +289,7 @@ export default function AdminTicketLog() {
     for (const id of ids) {
       try { await ticketsApi.assign(id, engineerName); ok++ } catch {}
     }
-    toast(`تم تعيين ${ok} تذكرة لـ ${engineerName}`)
+    toast(t('ticketLog.toast.assigned').replace('{n}', ok).replace('{name}', engineerName))
     load()
   }
 
@@ -297,38 +301,38 @@ export default function AdminTicketLog() {
     for (const id of ids) {
       try { await ticketsApi.updateStatus(id, status); ok++ } catch {}
     }
-    toast(`تم تحديث ${ok} تذكرة إلى "${STATUS_CFG[status]?.label}"`)
+    toast(t('ticketLog.toast.statusUpdated').replace('{n}', ok).replace('{status}', t(`status.${status}`)))
     load()
   }
 
   // ── single assign ──
   const handleSingleAssign = async (engineerName) => {
     await ticketsApi.assign(assignTarget.id, engineerName)
-    toast(`تم تعيين "${assignTarget.title}" لـ ${engineerName}`)
+    toast(t('ticketLog.toast.singleAssigned').replace('{title}', assignTarget.title).replace('{name}', engineerName))
     load()
   }
 
   // ── single status ──
   const handleStatus = async (id, status) => {
     await ticketsApi.updateStatus(id, status)
-    toast('تم تحديث الحالة')
+    toast(t('ticketLog.toast.statusUpdatedSingle'))
     load()
   }
 
   // ── delete ──
   const handleDelete = async (id) => {
-    if (!confirm('هل أنت متأكد من حذف هذه التذكرة؟')) return
+    if (!confirm(t('ticketLog.confirmDelete'))) return
     await ticketsApi.delete(id)
-    toast('تم الحذف')
+    toast(t('ticketLog.toast.deleted'))
     load()
   }
 
   const handleBulkDelete = async () => {
-    if (!confirm(`حذف ${selected.size} تذاكر؟`)) return
+    if (!confirm(t('ticketLog.confirmBulkDelete').replace('{n}', selected.size))) return
     const ids = [...selected]
     let ok = 0
     for (const id of ids) { try { await ticketsApi.delete(id); ok++ } catch {} }
-    toast(`تم حذف ${ok} تذكرة`)
+    toast(t('ticketLog.toast.bulkDeleted').replace('{n}', ok))
     load()
   }
 
@@ -350,7 +354,7 @@ export default function AdminTicketLog() {
 
   // ── export ──
   const handleExport = async () => {
-    toast('جاري تحضير الملف...', 'info')
+    toast(t('ticketLog.toast.preparingExport'), 'info')
     try {
       const res = await ticketsApi.adminLog({
         ...(filters.search.trim() && { search: filters.search.trim() }),
@@ -364,12 +368,13 @@ export default function AdminTicketLog() {
         ...(filters.date_to && { date_to: filters.date_to }),
         page: 1, page_size: 2000, sort_by: sort.by, sort_dir: sort.dir,
       })
-      exportCSV(res.data.items, `سجل_التذاكر_${new Date().toISOString().slice(0,10)}.csv`)
-      toast('تم تصدير الملف')
-    } catch { toast('فشل التصدير', 'error') }
+      exportCSV(res.data.items, `${t('ticketLog.csvFilenamePrefix')}${new Date().toISOString().slice(0,10)}.csv`, t('ticketLog.csvHeaders'))
+      toast(t('ticketLog.toast.exported'))
+    } catch { toast(t('ticketLog.toast.exportFailed'), 'error') }
   }
 
-  const selectedTickets = data.items.filter(t => selected.has(t.id))
+  const selectedTickets = data.items.filter(tk => selected.has(tk.id))
+  const locale = language === 'ar' ? 'ar-EG' : 'en-US'
 
   return (
     <div className="space-y-4">
@@ -378,20 +383,30 @@ export default function AdminTicketLog() {
       {/* ── Header ── */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">📋 سجل التذاكر</h2>
+          <h2 className="text-2xl font-bold text-slate-800">{t('ticketLog.title')}</h2>
           <p className="text-slate-500 text-sm mt-0.5">
-            {loading ? 'جاري التحميل...' : `${data.total.toLocaleString('ar-EG')} تذكرة`}
-            {activeFilterCount > 0 && <span className="text-yellow-600 mr-1">· {activeFilterCount} فلاتر نشطة</span>}
+            {loading ? t('common.loading') : t('ticketLog.ticketCount').replace('{n}', data.total.toLocaleString(locale))}
+            {activeFilterCount > 0 && <span className="text-yellow-600 mr-1">· {t('ticketLog.activeFilters').replace('{n}', activeFilterCount)}</span>}
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex items-center bg-slate-100 rounded-full p-0.5 text-xs font-semibold">
+            <button onClick={() => setLanguage('en')}
+              className={`px-2.5 py-1 rounded-full transition-all ${language === 'en' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}>
+              EN
+            </button>
+            <button onClick={() => setLanguage('ar')}
+              className={`px-2.5 py-1 rounded-full transition-all ${language === 'ar' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}>
+              🇪🇬 AR
+            </button>
+          </div>
           <button onClick={handleExport} className="btn-secondary !py-2 !px-3 gap-1.5 text-sm">
-            📥 تصدير CSV
+            {t('ticketLog.exportCsv')}
           </button>
           <button onClick={() => { setPage(1); load() }}
             className="btn-secondary !py-2 !px-3 text-sm">🔄</button>
           <button onClick={() => navigate('/tickets/new')}
-            className="btn-primary !py-2 !px-4 gap-1.5 text-sm">+ تذكرة جديدة</button>
+            className="btn-primary !py-2 !px-4 gap-1.5 text-sm">{t('ticketLog.newTicket')}</button>
         </div>
       </div>
 
@@ -403,7 +418,7 @@ export default function AdminTicketLog() {
               ${quickIdx === i
                 ? 'bg-yellow-600 text-white border-yellow-600 shadow-sm'
                 : 'bg-white text-slate-600 border-slate-200 hover:border-yellow-400 hover:text-yellow-700'}`}>
-            {q.label}
+            {t(`ticketLog.quick.${q.key}`)}
           </button>
         ))}
       </div>
@@ -415,7 +430,7 @@ export default function AdminTicketLog() {
           <input
             value={filters.search}
             onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(1) }}
-            placeholder="بحث بالعنوان، الطالب، البريد، المهندس..."
+            placeholder={t('ticketLog.searchPlh')}
             className="input w-full pr-9 !py-2 text-sm"
           />
           {filters.search && (
@@ -425,7 +440,7 @@ export default function AdminTicketLog() {
         </div>
         <button onClick={() => setShowFilters(v => !v)}
           className={`btn-secondary !py-2 !px-4 gap-2 text-sm relative ${showFilters ? 'bg-yellow-50 border-yellow-300 text-yellow-700' : ''}`}>
-          ⚙️ فلاتر متقدمة
+          {t('ticketLog.advancedFilters')}
           {activeFilterCount > 0 && (
             <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-yellow-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
               {activeFilterCount}
@@ -435,7 +450,7 @@ export default function AdminTicketLog() {
         {activeFilterCount > 0 && (
           <button onClick={resetFilters}
             className="text-xs text-red-500 hover:text-red-700 font-medium px-2">
-            × مسح الكل
+            {t('ticketLog.clearAll')}
           </button>
         )}
       </div>
@@ -447,7 +462,7 @@ export default function AdminTicketLog() {
 
             {/* Status */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">الحالة</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('ticketLog.filter.status')}</p>
               <div className="space-y-1.5">
                 {STATUSES.map(s => {
                   const cfg = STATUS_CFG[s]
@@ -457,7 +472,7 @@ export default function AdminTicketLog() {
                         onChange={() => { toggleArr('status', s); setPage(1) }}
                         className="w-3.5 h-3.5 accent-yellow-600 rounded" />
                       <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                      <span className="text-sm text-slate-700 group-hover:text-yellow-700">{cfg.label}</span>
+                      <span className="text-sm text-slate-700 group-hover:text-yellow-700">{t(`status.${s}`)}</span>
                     </label>
                   )
                 })}
@@ -466,7 +481,7 @@ export default function AdminTicketLog() {
 
             {/* Priority */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">الأولوية</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('ticketLog.filter.priority')}</p>
               <div className="space-y-1.5">
                 {PRIORITIES.map(p => {
                   const cfg = PRIORITY_CFG[p]
@@ -476,7 +491,7 @@ export default function AdminTicketLog() {
                         onChange={() => { toggleArr('priority', p); setPage(1) }}
                         className="w-3.5 h-3.5 accent-yellow-600 rounded" />
                       <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                      <span className="text-sm text-slate-700 group-hover:text-yellow-700">{cfg.label}</span>
+                      <span className="text-sm text-slate-700 group-hover:text-yellow-700">{t(`priority.${p}`)}</span>
                     </label>
                   )
                 })}
@@ -486,29 +501,29 @@ export default function AdminTicketLog() {
             {/* Engineer + Dept + Source */}
             <div className="space-y-3">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">المهندس</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('ticketLog.filter.engineer')}</p>
                 <select value={filters.assigned_to}
                   onChange={e => { setFilters(f => ({ ...f, assigned_to: e.target.value })); setPage(1) }}
                   className="input w-full !py-1.5 text-sm">
-                  <option value="">الكل</option>
+                  <option value="">{t('ticketLog.filter.all')}</option>
                   {engineers.filter(e => e.active === 'true').map(e => (
                     <option key={e.id} value={e.name}>{e.name}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">القسم</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('ticketLog.filter.department')}</p>
                 <select value={filters.department_id}
                   onChange={e => { setFilters(f => ({ ...f, department_id: e.target.value })); setPage(1) }}
                   className="input w-full !py-1.5 text-sm">
-                  <option value="">الكل</option>
+                  <option value="">{t('ticketLog.filter.all')}</option>
                   {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">المصدر</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('ticketLog.filter.source')}</p>
                 <div className="flex gap-2">
-                  {[{ val: '', label: 'الكل' }, { val: 'email', label: '📧 بريد' }, { val: 'manual', label: '✋ يدوي' }].map(o => (
+                  {[{ val: '', label: t('ticketLog.filter.all') }, { val: 'email', label: t('ticketLog.source.email') }, { val: 'manual', label: t('ticketLog.source.manual') }].map(o => (
                     <button key={o.val} onClick={() => { setFilters(f => ({ ...f, source: o.val })); setPage(1) }}
                       className={`flex-1 text-xs py-1.5 rounded-lg border transition-all font-medium
                         ${filters.source === o.val ? 'bg-yellow-600 text-white border-yellow-600' : 'border-slate-200 text-slate-600 hover:border-yellow-300'}`}>
@@ -522,13 +537,13 @@ export default function AdminTicketLog() {
             {/* Date range + unassigned */}
             <div className="space-y-3">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">من تاريخ</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('ticketLog.filter.dateFrom')}</p>
                 <input type="date" value={filters.date_from}
                   onChange={e => { setFilters(f => ({ ...f, date_from: e.target.value })); setPage(1) }}
                   className="input w-full !py-1.5 text-sm" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">إلى تاريخ</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('ticketLog.filter.dateTo')}</p>
                 <input type="date" value={filters.date_to}
                   onChange={e => { setFilters(f => ({ ...f, date_to: e.target.value })); setPage(1) }}
                   className="input w-full !py-1.5 text-sm" />
@@ -537,7 +552,7 @@ export default function AdminTicketLog() {
                 <input type="checkbox" checked={filters.unassigned}
                   onChange={e => { setFilters(f => ({ ...f, unassigned: e.target.checked })); setPage(1) }}
                   className="w-4 h-4 accent-yellow-600 rounded" />
-                <span className="text-sm font-medium text-slate-700">غير معيّنة فقط</span>
+                <span className="text-sm font-medium text-slate-700">{t('ticketLog.filter.unassignedOnly')}</span>
               </label>
             </div>
           </div>
@@ -549,13 +564,13 @@ export default function AdminTicketLog() {
         <div className="flex gap-1.5 flex-wrap">
           {filters.status.map(s => (
             <span key={s} className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-medium">
-              {STATUS_CFG[s]?.label}
+              {t(`status.${s}`)}
               <button onClick={() => { toggleArr('status', s); setPage(1) }} className="hover:text-red-900">✕</button>
             </span>
           ))}
           {filters.priority.map(p => (
             <span key={p} className="inline-flex items-center gap-1 px-2.5 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full text-xs font-medium">
-              {PRIORITY_CFG[p]?.label}
+              {t(`priority.${p}`)}
               <button onClick={() => { toggleArr('priority', p); setPage(1) }} className="hover:text-yellow-900">✕</button>
             </span>
           ))}
@@ -567,13 +582,13 @@ export default function AdminTicketLog() {
           )}
           {filters.source && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-xs font-medium">
-              {filters.source === 'email' ? '📧 بريد' : '✋ يدوي'}
+              {filters.source === 'email' ? t('ticketLog.source.email') : t('ticketLog.source.manual')}
               <button onClick={() => { setFilters(f => ({ ...f, source: '' })); setPage(1) }} className="hover:text-purple-900">✕</button>
             </span>
           )}
           {filters.unassigned && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-medium">
-              ⚠️ غير معيّنة
+              ⚠️ {t('ticketLog.quick.unassigned')}
               <button onClick={() => { setFilters(f => ({ ...f, unassigned: false })); setPage(1) }} className="hover:text-amber-900">✕</button>
             </span>
           )}
@@ -590,26 +605,26 @@ export default function AdminTicketLog() {
       {selected.size > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3 flex items-center gap-3 flex-wrap animate-fadeIn">
           <span className="text-sm font-semibold text-yellow-800">
-            {selected.size} تذكرة محددة
+            {t('ticketLog.selectedCount').replace('{n}', selected.size)}
           </span>
           <div className="flex gap-2 flex-wrap mr-2">
             <button onClick={() => setAssignTarget('bulk')}
               className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
-              👤 تعيين مهندس
+              {t('ticketLog.assignEngineer')}
             </button>
             <button onClick={() => setBulkStatusOpen(true)}
               className="text-xs bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
-              🔄 تغيير الحالة
+              {t('ticketLog.changeStatus')}
             </button>
             {canDelete && (
               <button onClick={handleBulkDelete}
                 className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
-                🗑 حذف
+                🗑 {t('common.delete')}
               </button>
             )}
           </div>
           <button onClick={() => setSelected(new Set())}
-            className="text-xs text-slate-500 hover:text-slate-700 mr-auto">إلغاء التحديد</button>
+            className="text-xs text-slate-500 hover:text-slate-700 mr-auto">{t('ticketLog.clearSelection')}</button>
         </div>
       )}
 
@@ -625,16 +640,16 @@ export default function AdminTicketLog() {
                     onChange={toggleAll}
                     className="w-3.5 h-3.5 accent-yellow-600 rounded" />
                 </th>
-                <SortTh label="#"          col="id"          sort={sort} onSort={handleSort} className="w-14" />
-                <SortTh label="العنوان"    col="title"       sort={sort} onSort={handleSort} />
-                <SortTh label="الطالب"     col="requester"   sort={sort} onSort={handleSort} />
-                <th className="table-th">القسم</th>
-                <SortTh label="الأولوية"   col="priority"    sort={sort} onSort={handleSort} className="w-24" />
-                <SortTh label="الحالة"     col="status"      sort={sort} onSort={handleSort} className="w-28" />
-                <SortTh label="المهندس"    col="assigned_to" sort={sort} onSort={handleSort} />
-                <th className="table-th w-16">المصدر</th>
-                <SortTh label="التاريخ"    col="created_at"  sort={sort} onSort={handleSort} className="w-28" />
-                <th className="table-th w-36">الإجراءات</th>
+                <SortTh label="#"                          col="id"          sort={sort} onSort={handleSort} className="w-14" />
+                <SortTh label={t('ticketLog.col.title')}      col="title"       sort={sort} onSort={handleSort} />
+                <SortTh label={t('ticketLog.col.requester')}  col="requester"   sort={sort} onSort={handleSort} />
+                <th className="table-th">{t('ticketLog.col.department')}</th>
+                <SortTh label={t('ticketLog.col.priority')}   col="priority"    sort={sort} onSort={handleSort} className="w-24" />
+                <SortTh label={t('ticketLog.col.status')}     col="status"      sort={sort} onSort={handleSort} className="w-28" />
+                <SortTh label={t('ticketLog.col.engineer')}   col="assigned_to" sort={sort} onSort={handleSort} />
+                <th className="table-th w-16">{t('ticketLog.col.source')}</th>
+                <SortTh label={t('ticketLog.col.date')}       col="created_at"  sort={sort} onSort={handleSort} className="w-28" />
+                <th className="table-th w-36">{t('ticketLog.col.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -642,15 +657,15 @@ export default function AdminTicketLog() {
                 <tr><td colSpan={11} className="py-16 text-center">
                   <div className="flex items-center justify-center gap-3 text-slate-400">
                     <div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
-                    جاري التحميل...
+                    {t('common.loading')}
                   </div>
                 </td></tr>
               ) : data.items.length === 0 ? (
                 <tr><td colSpan={11} className="py-16 text-center text-slate-400">
                   <p className="text-3xl mb-2">🔍</p>
-                  <p>لا توجد تذاكر تطابق الفلاتر المحددة</p>
+                  <p>{t('ticketLog.noResults')}</p>
                   {activeFilterCount > 0 && (
-                    <button onClick={resetFilters} className="text-yellow-600 hover:underline text-sm mt-2">مسح الفلاتر</button>
+                    <button onClick={resetFilters} className="text-yellow-600 hover:underline text-sm mt-2">{t('ticketLog.clearFilters')}</button>
                   )}
                 </td></tr>
               ) : data.items.map(ticket => {
@@ -698,7 +713,7 @@ export default function AdminTicketLog() {
 
                     {/* Priority */}
                     <td className="table-td">
-                      <span className={`badge ${pri.badge} whitespace-nowrap`}>{pri.label}</span>
+                      <span className={`badge ${pri.badge} whitespace-nowrap`}>{t(`priority.${ticket.priority}`)}</span>
                     </td>
 
                     {/* Status */}
@@ -707,7 +722,7 @@ export default function AdminTicketLog() {
                         onChange={e => handleStatus(ticket.id, e.target.value)}
                         className={`text-xs rounded-lg px-2 py-1 border-0 font-medium cursor-pointer ${stat.badge}`}>
                         {STATUSES.map(s => (
-                          <option key={s} value={s}>{STATUS_CFG[s].label}</option>
+                          <option key={s} value={s}>{t(`status.${s}`)}</option>
                         ))}
                       </select>
                     </td>
@@ -724,14 +739,14 @@ export default function AdminTicketLog() {
                       ) : (
                         <button onClick={() => setAssignTarget(ticket)}
                           className="text-[11px] text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1">
-                          <span>⚠️</span> تعيين
+                          <span>⚠️</span> {t('ticketLog.assign')}
                         </button>
                       )}
                     </td>
 
                     {/* Source */}
                     <td className="table-td text-center">
-                      <span title={ticket.source === 'email' ? 'بريد إلكتروني' : 'يدوي'}
+                      <span title={ticket.source === 'email' ? t('ticketLog.source.email') : t('ticketLog.source.manual')}
                         className={`text-xs px-1.5 py-0.5 rounded-md ${ticket.source === 'email' ? 'bg-purple-50 text-purple-600' : 'bg-slate-50 text-slate-400'}`}>
                         {ticket.source === 'email' ? '📧' : '✋'}
                       </span>
@@ -739,19 +754,19 @@ export default function AdminTicketLog() {
 
                     {/* Date */}
                     <td className="table-td">
-                      <span className="text-xs text-slate-500 whitespace-nowrap">{fmtDate(ticket.created_at)}</span>
+                      <span className="text-xs text-slate-500 whitespace-nowrap">{fmtDate(ticket.created_at, language)}</span>
                     </td>
 
                     {/* Actions */}
                     <td className="table-td">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => navigate(`/tickets/${ticket.id}`)}
-                          title="تفاصيل" className="p-1.5 rounded-lg hover:bg-yellow-100 text-yellow-600 text-sm transition-colors">👁</button>
+                          title={t('ticketLog.viewDetails')} className="p-1.5 rounded-lg hover:bg-yellow-100 text-yellow-600 text-sm transition-colors">👁</button>
                         <button onClick={() => setAssignTarget(ticket)}
-                          title="تعيين" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 text-sm transition-colors">👤</button>
+                          title={t('ticketLog.assign')} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 text-sm transition-colors">👤</button>
                         {canDelete && (
                           <button onClick={() => handleDelete(ticket.id)}
-                            title="حذف" className="p-1.5 rounded-lg hover:bg-red-100 text-red-500 text-sm transition-colors">🗑</button>
+                            title={t('common.delete')} className="p-1.5 rounded-lg hover:bg-red-100 text-red-500 text-sm transition-colors">🗑</button>
                         )}
                       </div>
                     </td>
@@ -767,12 +782,14 @@ export default function AdminTicketLog() {
           <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-3 bg-slate-50/50">
             <div className="flex items-center gap-3 text-sm text-slate-600">
               <span>
-                {((page - 1) * pageSize + 1).toLocaleString('ar-EG')}–
-                {Math.min(page * pageSize, data.total).toLocaleString('ar-EG')} من {data.total.toLocaleString('ar-EG')}
+                {t('ticketLog.paginationRange')
+                  .replace('{from}', ((page - 1) * pageSize + 1).toLocaleString(locale))
+                  .replace('{to}', Math.min(page * pageSize, data.total).toLocaleString(locale))
+                  .replace('{total}', data.total.toLocaleString(locale))}
               </span>
               <select value={pageSize} onChange={e => { setPageSize(+e.target.value); setPage(1) }}
                 className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white">
-                {PAGE_SIZES.map(s => <option key={s} value={s}>{s} لكل صفحة</option>)}
+                {PAGE_SIZES.map(s => <option key={s} value={s}>{t('ticketLog.perPage').replace('{n}', s)}</option>)}
               </select>
             </div>
 

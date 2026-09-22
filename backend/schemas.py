@@ -285,6 +285,8 @@ class TicketRoutingRuleBase(BaseModel):
     keywords: str
     engineer_name: str
     engineer_email: Optional[str] = None
+    notify_name: Optional[str] = None
+    notify_email: Optional[str] = None
     active: str = "true"
     priority_order: int = 0
 

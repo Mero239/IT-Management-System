@@ -139,11 +139,13 @@ def _match_rule(title: str, description: str, db: Session) -> Optional["models.T
 
 
 def find_routing_match(title: str, description: str, db: Session) -> Optional[dict]:
-    """Like find_routed_engineer, but also returns every engineer listed on the
-    matched rule (not just the one randomly picked as the ticket's owner) —
-    used so a rule shared by several engineers (e.g. laptop purchases going to
-    both Amr Issa and Mahmoud Farag) can notify all of them, not only whoever
-    ends up as assigned_to."""
+    """Like find_routed_engineer, but also returns everyone who should be
+    notified of the match: every engineer listed on the rule (not just the
+    one randomly picked as the ticket's owner — e.g. a rule shared by two
+    engineers notifies both, not only whoever ends up as assigned_to), plus
+    anyone in the rule's notify_name/notify_email — people who should hear
+    about a match but are never candidates for assigned_to themselves
+    (e.g. "assign to Mahmoud Farag, just notify Amr Issa")."""
     rule = _match_rule(title, description, db)
     if not rule:
         return None
@@ -155,4 +157,10 @@ def find_routing_match(title: str, description: str, db: Session) -> Optional[di
     ]
     if not engineers:
         return None
+
+    notify_names = [n.strip() for n in (rule.notify_name or "").split(",") if n.strip()]
+    notify_emails = [e.strip() for e in (rule.notify_email or "").split(",") if e.strip()]
+    for i, n in enumerate(notify_names):
+        engineers.append({"name": n, "email": notify_emails[i] if i < len(notify_emails) else ""})
+
     return {"assigned_to": _least_busy(names, db), "engineers": engineers}

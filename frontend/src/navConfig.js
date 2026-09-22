@@ -56,7 +56,7 @@ export const DEFAULT_STRUCTURE = [
   { key: 'nav.dashboard' },
   { key: 'nav.ticketingSystem', children: [
     'nav.tasks', 'nav.tickets', 'nav.sla', 'nav.inbox', 'nav.telegramTickets', 'nav.whatsappTickets', 'nav.emailTickets',
-    'nav.myTickets', 'nav.knowledgeBase', 'nav.ticketReports', 'nav.cannedResponses', 'nav.supportAgreement',
+    'nav.myTickets', 'nav.knowledgeBase', 'nav.ticketReports', 'nav.supportAgreement',
     'nav.adminDashboard', 'nav.adminTicketLog', 'nav.adminTicketRouting', 'nav.adminRecurringTickets',
     'nav.adminTicketCategories', 'nav.adminChannels', 'nav.emailAgent',
   ] },

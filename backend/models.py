@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from database import Base
-from datetime import datetime, timedelta
+from database import Base, UTCDateTime
+from datetime import datetime, timedelta, timezone
 
 # Max resolution time per ticket priority, in hours.
 SLA_HOURS_BY_PRIORITY = {"critical": 4, "high": 24, "medium": 72, "low": 168}
@@ -30,11 +30,11 @@ class EngineerTask(Base):
     description = Column(Text)
     task_type = Column(String(100), nullable=True)
     frequency = Column(String(20), default="one_time")    # daily | weekly | monthly | one_time
-    task_date = Column(DateTime(timezone=True), nullable=False)
+    task_date = Column(UTCDateTime, nullable=False)
     assigned_to = Column(String(200), nullable=True)
     status = Column(String(20), default="pending")        # pending | done
-    last_reminded_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_reminded_at = Column(UTCDateTime, nullable=True)
+    created_at = Column(UTCDateTime, server_default=func.now())
 
 
 class EngineerNavConfig(Base):
@@ -46,7 +46,7 @@ class EngineerNavConfig(Base):
     engineer_id = Column(Integer, unique=True, nullable=False, index=True)
     sections = Column(JSON, nullable=False)
     labels = Column(JSON, nullable=True)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(UTCDateTime, server_default=func.now(), onupdate=func.now())
 
 
 class TicketCategory(Base):
@@ -56,7 +56,7 @@ class TicketCategory(Base):
     label = Column(String(100), nullable=False)          # Arabic (primary) label
     label_en = Column(String(100), nullable=True)         # English label — falls back to `label` if unset
     icon = Column(String(10), default="🏷️")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
 
 class Department(Base):
@@ -64,7 +64,7 @@ class Department(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     manager = Column(String(200))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
     assets = relationship("Asset", back_populates="department")
     requests = relationship("NeedsRequest", back_populates="department")
@@ -76,7 +76,7 @@ class Organization(Base):
     __tablename__ = "organizations"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), unique=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
     branches = relationship("Branch", back_populates="organization")
 
@@ -87,7 +87,7 @@ class Branch(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
     organization = relationship("Organization", back_populates="branches")
 
@@ -110,8 +110,8 @@ class Asset(Base):
     branch = Column(String(100))
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
     notes = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
+    updated_at = Column(UTCDateTime, onupdate=func.now())
 
     department = relationship("Department", back_populates="assets")
 
@@ -131,8 +131,8 @@ class NeedsRequest(Base):
     priority = Column(String(50), default="medium")  # low, medium, high, critical
     status = Column(String(50), default="pending")   # pending, approved, rejected, fulfilled
     notes = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
+    updated_at = Column(UTCDateTime, onupdate=func.now())
 
     department = relationship("Department", back_populates="requests")
 
@@ -162,12 +162,12 @@ class SupportTicket(Base):
     asset_id = Column(Integer, ForeignKey("assets.id"), nullable=True)
     csat_rating = Column(Integer, nullable=True)              # 1-5, set once by requester after resolution
     csat_comment = Column(Text, nullable=True)                # optional free-text feedback alongside the rating
-    csat_submitted_at = Column(DateTime(timezone=True), nullable=True)
+    csat_submitted_at = Column(UTCDateTime, nullable=True)
     escalated = Column(String(5), default="false")            # "true" once auto-escalated for this SLA breach risk
     sla_nudged = Column(String(5), default="false")           # "true" once the assigned engineer got an early at-risk reminder
     recurring_template_id = Column(Integer, ForeignKey("recurring_ticket_templates.id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
+    updated_at = Column(UTCDateTime, onupdate=func.now())
 
     department = relationship("Department", back_populates="tickets")
     organization = relationship("Organization")
@@ -194,7 +194,7 @@ class SupportTicket(Base):
         if self.status in ("resolved", "closed"):
             finished_at = self.updated_at or self.created_at
             return "breached" if finished_at > due else "met"
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if now > due:
             return "breached"
         total_seconds = self.sla_hours * 3600
@@ -219,7 +219,7 @@ class ITEngineer(Base):
     # no assets, departments, licensed software, reports, employees, mailboxes, etc.
     access_scope = Column(String(20), default="full")
     password_hash = Column(String(200), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
 
 class Mailbox(Base):
@@ -246,8 +246,8 @@ class Mailbox(Base):
     mobile_device  = Column(String(5),   nullable=True)   # "true" | "false"
     last_logon     = Column(DateTime,    nullable=True)
     last_logoff    = Column(DateTime,    nullable=True)
-    imported_at    = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at     = Column(DateTime(timezone=True), onupdate=func.now())
+    imported_at    = Column(UTCDateTime, server_default=func.now())
+    updated_at     = Column(UTCDateTime, onupdate=func.now())
 
 
 class Employee(Base):
@@ -263,8 +263,8 @@ class Employee(Base):
     sector        = Column(String(300), nullable=True)   # الوعاء / القطاع
     hire_date     = Column(String(20),  nullable=True)   # تاريخ التعيين
     birth_date    = Column(String(20),  nullable=True)   # تاريخ الميلاد
-    created_at    = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at    = Column(UTCDateTime, server_default=func.now())
+    updated_at    = Column(UTCDateTime, onupdate=func.now())
 
 
 class TicketComment(Base):
@@ -275,7 +275,7 @@ class TicketComment(Base):
     content = Column(Text, nullable=False)
     # type: "comment" = user comment, "activity" = system event (status change, assign, etc.)
     type = Column(String(20), default="comment")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
     ticket = relationship("SupportTicket", back_populates="comments")
 
@@ -291,7 +291,7 @@ class Notification(Base):
     message = Column(String(500))
     is_read = Column(String(5), default="false")   # "true" | "false"
     email_sent = Column(String(5), default="false")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
 
 class PasswordResetToken(Base):
@@ -299,9 +299,9 @@ class PasswordResetToken(Base):
     id = Column(Integer, primary_key=True, index=True)
     engineer_id = Column(Integer, ForeignKey("it_engineers.id", ondelete="CASCADE"), nullable=False)
     token = Column(String(100), unique=True, nullable=False, index=True)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
+    expires_at = Column(UTCDateTime, nullable=False)
     used = Column(String(5), default="false")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
 
 class PasswordResetOTP(Base):
@@ -310,9 +310,9 @@ class PasswordResetOTP(Base):
     id = Column(Integer, primary_key=True, index=True)
     engineer_id = Column(Integer, ForeignKey("it_engineers.id", ondelete="CASCADE"), nullable=False)
     code = Column(String(10), nullable=False)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
+    expires_at = Column(UTCDateTime, nullable=False)
     used = Column(String(5), default="false")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
 
 class SupportAgreement(Base):
@@ -323,7 +323,7 @@ class SupportAgreement(Base):
     stored_filename = Column(String(300), nullable=False)     # name on disk
     original_filename = Column(String(300), nullable=False)   # name shown to users
     file_size = Column(Integer, default=0)
-    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    uploaded_at = Column(UTCDateTime, server_default=func.now())
 
 
 class ProcessedEmail(Base):
@@ -333,7 +333,7 @@ class ProcessedEmail(Base):
     subject = Column(String(500))
     sender = Column(String(200))
     ticket_id = Column(Integer, nullable=True)
-    processed_at = Column(DateTime(timezone=True), server_default=func.now())
+    processed_at = Column(UTCDateTime, server_default=func.now())
 
 
 class TicketCannedResponse(Base):
@@ -343,7 +343,7 @@ class TicketCannedResponse(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False)
     body = Column(Text, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
 
 class RecurringTicketTemplate(Base):
@@ -363,8 +363,8 @@ class RecurringTicketTemplate(Base):
     day_of_week = Column(Integer, nullable=True)           # 0=Monday .. 6=Sunday, for weekly
     day_of_month = Column(Integer, nullable=True)          # 1-28, for monthly
     active = Column(String(5), default="true")
-    last_created_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_created_at = Column(UTCDateTime, nullable=True)
+    created_at = Column(UTCDateTime, server_default=func.now())
 
     department = relationship("Department")
     organization = relationship("Organization")
@@ -379,7 +379,7 @@ class TicketReportPreset(Base):
     name = Column(String(200), nullable=False)
     filters = Column(Text, nullable=False)   # JSON-encoded filter dict
     created_by = Column(String(200), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
 
 class TicketRoutingRule(Base):
@@ -391,9 +391,13 @@ class TicketRoutingRule(Base):
     keywords = Column(Text, nullable=False)
     engineer_name = Column(String(200), nullable=False)
     engineer_email = Column(String(200), nullable=True)
+    # Extra people who just get notified on a match — never picked as the
+    # actual assignee (that's always from engineer_name/_least_busy).
+    notify_name = Column(String(200), nullable=True)
+    notify_email = Column(String(200), nullable=True)
     active = Column(String(5), default="true")
     priority_order = Column(Integer, default=0)   # lower checked first
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
 
 
 class LicensedSoftware(Base):
@@ -406,7 +410,7 @@ class LicensedSoftware(Base):
     quantity = Column(Integer, default=1)
     license_renewal_date = Column(String(20), nullable=True)
     notes = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
+    updated_at = Column(UTCDateTime, onupdate=func.now())
 
     department = relationship("Department")
