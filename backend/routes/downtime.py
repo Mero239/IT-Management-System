@@ -52,6 +52,8 @@ def update_downtime(incident_id: int, data: schemas.DowntimeCreate, db: Session 
 
 @router.delete("/{incident_id}")
 def delete_downtime(incident_id: int, db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    if engineer.permission_level != "admin":
+        raise HTTPException(403, "حذف سجلات التوقف متاح للأدمن فقط")
     obj = db.query(models.DowntimeIncident).filter(models.DowntimeIncident.id == incident_id).first()
     if not obj:
         raise HTTPException(404, "الحادثة غير موجودة")

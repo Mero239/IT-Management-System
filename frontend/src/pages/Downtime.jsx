@@ -3,6 +3,7 @@ import { downtimeApi } from '../api/client'
 import Modal from '../components/Modal'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
+import { useAuth } from '../context/AuthContext'
 
 const SERVICES = ['email', 'internet', 'sap', 'power', 'network', 'server', 'other']
 
@@ -19,6 +20,8 @@ const emptyForm = { service: 'internet', title: '', reason: '', start_time: nowL
 
 export default function Downtime() {
   const { t, language } = useLanguage()
+  const { engineer } = useAuth()
+  const isAdmin = engineer?.permission_level === 'admin'
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
@@ -139,7 +142,11 @@ export default function Downtime() {
                 return (
                   <tr key={item.id} className={`hover:bg-slate-50/50 ${ongoing ? 'bg-red-50/50' : ''}`}>
                     <td className="table-td text-slate-600 text-xs whitespace-nowrap">{t(`downtime.service.${item.service}`)}</td>
-                    <td className="table-td font-medium text-slate-800">{item.title}</td>
+                    <td className="table-td">
+                      <button onClick={() => openEdit(item)} className="font-medium text-slate-800 hover:text-yellow-600 transition-colors text-start">
+                        {item.title}
+                      </button>
+                    </td>
                     <td className="table-td text-slate-500 text-xs max-w-[220px] truncate" title={item.reason || ''}>{item.reason || '—'}</td>
                     <td className="table-td text-slate-500 text-xs whitespace-nowrap">{fmtDt(item.start_time)}</td>
                     <td className="table-td text-slate-500 text-xs whitespace-nowrap">{fmtDt(item.end_time)}</td>
@@ -166,7 +173,9 @@ export default function Downtime() {
                           <button onClick={() => handleEndNow(item)} className="btn-secondary !text-xs !px-2 !py-1">{t('downtime.endNow')}</button>
                         )}
                         <button onClick={() => openEdit(item)} className="btn-secondary !text-xs !px-2 !py-1">✏️</button>
-                        <button onClick={() => handleDelete(item.id)} className="btn-danger !text-xs !px-2 !py-1">🗑️</button>
+                        {isAdmin && (
+                          <button onClick={() => handleDelete(item.id)} className="btn-danger !text-xs !px-2 !py-1">🗑️</button>
+                        )}
                       </div>
                     </td>
                   </tr>
