@@ -75,7 +75,11 @@ def update_task(task_id: int, data: schemas.TaskCreate, db: Session = Depends(ge
         setattr(obj, k, v)
     if obj.status == "done" and not was_done:
         obj.completed_at = datetime.now(timezone.utc)
-    elif obj.status == "pending":
+    elif obj.status == "pending" and was_done:
+        # only a real done→pending transition should reset the reminder
+        # clock — an unrelated save that merely leaves status=pending as-is
+        # must not wipe last_reminded_at, or the task looks "never reminded"
+        # and gets spuriously re-notified every time it's edited
         obj.completed_at = None
         obj.last_reminded_at = None
     db.commit()
