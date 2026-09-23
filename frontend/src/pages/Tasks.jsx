@@ -26,6 +26,9 @@ export default function Tasks() {
   const { t, language } = useLanguage()
   const { engineer } = useAuth()
   const isAdmin = engineer?.permission_level === 'admin'
+  // an 'it_manager' can see every engineer's tasks (oversight) even though
+  // they still only create/edit/delete their own, like a regular engineer
+  const canViewAll = isAdmin || engineer?.access_scope === 'it_manager'
   const [items, setItems] = useState([])
   const [engineers, setEngineers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -98,7 +101,7 @@ export default function Tasks() {
       <Header title={t('tasks.title')} subtitle={t('tasks.subtitle')} />
 
       <div className="card !p-4 flex flex-wrap gap-3 items-end">
-        {isAdmin && (
+        {canViewAll && (
           <div>
             <label className="form-label">{t('tasks.filter.engineer')}</label>
             <select className="form-select !text-sm" value={filters.assigned_to} onChange={e => setFilters(f => ({ ...f, assigned_to: e.target.value }))}>
@@ -137,7 +140,7 @@ export default function Tasks() {
               <tr>
                 {[
                   t('tasks.col.task'), t('tasks.col.type'), t('tasks.col.frequency'), t('tasks.col.date'),
-                  ...(isAdmin ? [t('tasks.col.engineer')] : []), t('common.status'), t('common.actions'),
+                  ...(canViewAll ? [t('tasks.col.engineer')] : []), t('common.status'), t('common.actions'),
                 ].map(h => (
                   <th key={h} className="table-th">{h}</th>
                 ))}
@@ -156,7 +159,7 @@ export default function Tasks() {
                   <td className="table-td text-slate-500 text-xs whitespace-nowrap">
                     {new Date(item.task_date).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </td>
-                  {isAdmin && <td className="table-td text-slate-500 text-xs">{item.assigned_to || '—'}</td>}
+                  {canViewAll && <td className="table-td text-slate-500 text-xs">{item.assigned_to || '—'}</td>}
                   <td className="table-td">
                     {isOverdue(item) ? (
                       <button

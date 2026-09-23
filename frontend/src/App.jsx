@@ -64,19 +64,21 @@ function RequireAuth({ children }) {
   return children
 }
 
-// Users with access_scope 'tickets_only' can only reach the ticketing
-// system's own pages (+ their own account settings). Direct URL access to
-// anything else redirects back to /tickets — this backs up the Sidebar's
-// nav filtering so it can't be bypassed by typing a URL directly.
+// Users with access_scope 'tickets_only' (or 'it_manager', which is the same
+// scope plus seeing everyone's tasks) can only reach the ticketing system's
+// own pages (+ their own account settings). Direct URL access to anything
+// else redirects back to /tickets — this backs up the Sidebar's nav
+// filtering so it can't be bypassed by typing a URL directly.
 const TICKETS_ONLY_ALLOWED_PREFIXES = [
   '/', '/tickets', '/sla', '/inbox', '/engineer-dashboard', '/knowledge-base', '/settings',
   '/ticket-reports', '/canned-responses', '/ticket-dashboard', '/tasks', '/menu-customizer', '/downtime',
 ]
+const RESTRICTED_SCOPES = ['tickets_only', 'it_manager']
 
 function TicketsOnlyGuard({ children }) {
   const { engineer } = useAuth()
   const location = useLocation()
-  if (engineer?.access_scope === 'tickets_only') {
+  if (RESTRICTED_SCOPES.includes(engineer?.access_scope)) {
     const allowed = TICKETS_ONLY_ALLOWED_PREFIXES.some(
       (p) => location.pathname === p || location.pathname.startsWith(p + '/')
     )

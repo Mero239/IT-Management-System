@@ -16,7 +16,9 @@ const PERM = {
 const SCOPE = {
   full:         { label: 'كل النظام',    color: 'bg-slate-100 text-slate-600 border-slate-200', icon: '🗂️' },
   tickets_only: { label: 'التذاكر فقط',  color: 'bg-blue-100 text-blue-700 border-blue-200',    icon: '🎫' },
+  it_manager:   { label: 'مدير IT',      color: 'bg-purple-100 text-purple-700 border-purple-200', icon: '🧑‍💼' },
 }
+const SCOPE_ORDER = ['full', 'tickets_only', 'it_manager']
 
 const emptyForm = { name: '', email: '', role: 'IT Engineer', active: 'true', permission_level: 'engineer', access_scope: 'full' }
 
@@ -59,8 +61,9 @@ function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onToggleScope, onRe
   }
 
   const handleToggleScope = async () => {
-    const next = eng.access_scope === 'tickets_only' ? 'full' : 'tickets_only'
-    if (next === 'tickets_only' && !confirm(`حصر وصول ${eng.name} على نظام التذاكر فقط (يخفي باقي أجزاء النظام)؟`)) return
+    const idx = SCOPE_ORDER.indexOf(eng.access_scope)
+    const next = SCOPE_ORDER[(idx === -1 ? 0 : idx) + 1] || SCOPE_ORDER[0]
+    if (next !== 'full' && !confirm(`حصر وصول ${eng.name} على نظام التذاكر فقط (يخفي باقي أجزاء النظام)؟`)) return
     setScoping(true)
     try { await onToggleScope(eng.id, next) }
     finally { setScoping(false) }
@@ -105,7 +108,7 @@ function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onToggleScope, onRe
             onClick={handleToggleScope}
             disabled={scoping}
             className={`badge border text-xs cursor-pointer hover:opacity-80 transition-opacity ${scope.color} ${scoping ? 'opacity-50' : ''}`}
-            title="انقر لتبديل نطاق الوصول"
+            title="انقر للتبديل بين: كل النظام ← التذاكر فقط ← مدير IT"
           >
             {scope.icon} {scope.label}
           </button>
@@ -408,17 +411,20 @@ export default function AdminEngineers() {
 
             <div>
               <label className="form-label">نطاق الوصول</label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                {Object.entries(SCOPE).map(([key, s]) => (
-                  <button key={key} type="button"
-                    onClick={() => setForm(f => ({ ...f, access_scope: key }))}
-                    className={`p-3 rounded-xl border-2 text-center transition-all ${form.access_scope === key ? `${s.color} shadow-sm` : 'border-slate-100 hover:border-slate-200'}`}>
-                    <div className="text-xl mb-1">{s.icon}</div>
-                    <div className="text-xs font-bold text-slate-700">{s.label}</div>
-                  </button>
-                ))}
+              <div className="grid grid-cols-3 gap-2 mt-1">
+                {SCOPE_ORDER.map(key => {
+                  const s = SCOPE[key]
+                  return (
+                    <button key={key} type="button"
+                      onClick={() => setForm(f => ({ ...f, access_scope: key }))}
+                      className={`p-3 rounded-xl border-2 text-center transition-all ${form.access_scope === key ? `${s.color} shadow-sm` : 'border-slate-100 hover:border-slate-200'}`}>
+                      <div className="text-xl mb-1">{s.icon}</div>
+                      <div className="text-xs font-bold text-slate-700">{s.label}</div>
+                    </button>
+                  )
+                })}
               </div>
-              <p className="text-xs text-slate-400 mt-1.5">"التذاكر فقط" بتخفي كل أجزاء النظام التانية (الأصول، الأقسام، التقارير...) وتسيب بس نظام التذاكر بكل قنواته.</p>
+              <p className="text-xs text-slate-400 mt-1.5">"التذاكر فقط" و"مدير IT" بيخفوا كل أجزاء النظام التانية (الأصول، الأقسام، التقارير...) ويسيبوا بس نظام التذاكر بكل قنواته. الفرق: "مدير IT" بيشوف كمان مهام كل المهندسين في شاشة المهام، مش بس مهامه هو.</p>
             </div>
 
             {!editing && (

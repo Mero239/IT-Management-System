@@ -13,10 +13,15 @@ VALID_STATUSES = ["pending", "done"]
 
 
 # Tasks are personal: an engineer only ever sees/edits their own (matched by
-# name — same convention as assigned_to everywhere else in this app). Only
-# admins can see and manage everyone's.
+# name — same convention as assigned_to everywhere else in this app). Admins
+# can see and manage everyone's; an 'it_manager' can additionally *see*
+# everyone's (oversight), but still only creates/edits/deletes their own.
 def _is_admin(engineer):
     return engineer.permission_level == "admin"
+
+
+def _can_view_all_tasks(engineer):
+    return _is_admin(engineer) or engineer.access_scope == "it_manager"
 
 
 @router.get("/", response_model=List[schemas.TaskOut])
@@ -28,7 +33,7 @@ def list_tasks(
     engineer=Depends(get_current_engineer),
 ):
     q = db.query(models.EngineerTask)
-    if _is_admin(engineer):
+    if _can_view_all_tasks(engineer):
         if assigned_to:
             q = q.filter(models.EngineerTask.assigned_to == assigned_to)
     else:

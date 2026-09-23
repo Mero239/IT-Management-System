@@ -98,9 +98,10 @@ export default function Sidebar() {
   const resolvedItems = resolveStructure(structure)
   const topLevelItems = resolvedItems.filter(i => !i.adminOnly || isAdmin)
 
-  // Users restricted to access_scope 'tickets_only' see nothing but the
-  // ticketing system's own channels — flattened, since it's their entire menu.
-  const isTicketsOnly = engineer?.access_scope === 'tickets_only'
+  // Users restricted to access_scope 'tickets_only' (or 'it_manager') see
+  // nothing but the ticketing system's own channels — flattened, since it's
+  // their entire menu.
+  const isTicketsOnly = engineer?.access_scope === 'tickets_only' || engineer?.access_scope === 'it_manager'
   const ticketingGroup = resolvedItems.find(i => i.key === 'nav.ticketingSystem')
   const visibleNavItems = isTicketsOnly && ticketingGroup
     ? ticketingGroup.children.filter((c) => !c.adminOnly || isAdmin)

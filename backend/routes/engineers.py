@@ -9,7 +9,10 @@ import models
 router = APIRouter(prefix="/engineers", tags=["engineers"])
 
 VALID_PERMISSIONS = ["admin", "engineer", "viewer"]
-VALID_ACCESS_SCOPES = ["full", "tickets_only"]
+# 'it_manager' behaves like 'tickets_only' (sidebar restricted to the ticketing
+# system) but additionally sees every engineer's tasks, not just their own —
+# see _can_see_all_tasks() in routes/tasks.py.
+VALID_ACCESS_SCOPES = ["full", "tickets_only", "it_manager"]
 
 
 def _require_admin(engineer):
