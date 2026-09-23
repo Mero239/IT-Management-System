@@ -85,10 +85,15 @@ def _remind(task, db, overdue=False):
 
     # keep a recurring task's date field pointing at TODAY's occurrence —
     # otherwise it stays frozen at whenever the task was first created and
-    # looks like it never actually renewed, even though it did
+    # looks like it never actually renewed, even though it did. The time of
+    # day the engineer originally scheduled it for is preserved — only the
+    # date advances.
     if task.frequency in ("daily", "weekly", "monthly"):
         today = date.today()
-        task.task_date = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
+        old = task.task_date
+        hour = old.hour if isinstance(old, datetime) else 0
+        minute = old.minute if isinstance(old, datetime) else 0
+        task.task_date = datetime(today.year, today.month, today.day, hour, minute, tzinfo=timezone.utc)
 
     db.add(models.Notification(
         engineer_name=task.assigned_to,

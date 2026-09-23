@@ -8,6 +8,7 @@ export const NAV_CATALOG = {
   'nav.dashboard':             { to: '/', icon: '📊', end: true },
 
   'nav.ticketingSystem':       { icon: '🎫', isGroup: true },
+  'nav.ticketDashboard':        { to: '/ticket-dashboard', icon: '📊' },
   'nav.tickets':                { to: '/tickets', icon: '🎫' },
   'nav.sla':                    { to: '/sla', icon: '⏱️' },
   'nav.inbox':                  { to: '/inbox', icon: '📥' },
@@ -56,7 +57,7 @@ export const NAV_CATALOG = {
 export const DEFAULT_STRUCTURE = [
   { key: 'nav.dashboard' },
   { key: 'nav.ticketingSystem', children: [
-    'nav.tasks', 'nav.tickets', 'nav.sla', 'nav.inbox', 'nav.telegramTickets', 'nav.whatsappTickets', 'nav.emailTickets',
+    'nav.ticketDashboard', 'nav.tasks', 'nav.tickets', 'nav.sla', 'nav.inbox', 'nav.telegramTickets', 'nav.whatsappTickets', 'nav.emailTickets',
     'nav.myTickets', 'nav.knowledgeBase', 'nav.ticketReports', 'nav.supportAgreement', 'nav.downtime',
     'nav.adminDashboard', 'nav.adminTicketLog', 'nav.adminTicketRouting', 'nav.adminRecurringTickets',
     'nav.adminTicketCategories', 'nav.adminChannels', 'nav.emailAgent',

@@ -9,9 +9,17 @@ const FREQUENCIES = ['daily', 'weekly', 'monthly', 'one_time']
 
 const todayStr = () => new Date().toISOString().slice(0, 10)
 
+function toLocalInput(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+const nowLocalInput = () => toLocalInput(new Date().toISOString())
+
 const emptyForm = {
   title: '', description: '', task_type: '', frequency: 'one_time',
-  task_date: todayStr(), assigned_to: '', status: 'pending',
+  task_date: nowLocalInput(), assigned_to: '', status: 'pending',
 }
 
 export default function Tasks() {
@@ -41,12 +49,12 @@ export default function Tasks() {
 
   const openAdd = () => {
     setEditing(null)
-    setForm({ ...emptyForm, assigned_to: isAdmin ? '' : (engineer?.name || '') })
+    setForm({ ...emptyForm, task_date: nowLocalInput(), assigned_to: isAdmin ? '' : (engineer?.name || '') })
     setError(''); setModal(true)
   }
   const openEdit = (item) => {
     setEditing(item)
-    setForm({ ...item, task_date: item.task_date?.slice(0, 10) || todayStr(), task_type: item.task_type || '', assigned_to: item.assigned_to || '' })
+    setForm({ ...item, task_date: toLocalInput(item.task_date) || nowLocalInput(), task_type: item.task_type || '', assigned_to: item.assigned_to || '' })
     setError(''); setModal(true)
   }
 
@@ -55,8 +63,9 @@ export default function Tasks() {
     if (!form.task_date) { setError(t('tasks.errorDate')); return }
     setSaving(true); setError('')
     try {
-      if (editing) await tasksApi.update(editing.id, form)
-      else await tasksApi.create(form)
+      const payload = { ...form, task_date: new Date(form.task_date).toISOString() }
+      if (editing) await tasksApi.update(editing.id, payload)
+      else await tasksApi.create(payload)
       setModal(false); load()
     } catch (e) { setError(e.response?.data?.detail || t('common.error') || 'Error') }
     finally { setSaving(false) }
@@ -144,7 +153,9 @@ export default function Tasks() {
                   </td>
                   <td className="table-td text-slate-500 text-xs">{item.task_type || '—'}</td>
                   <td className="table-td text-slate-500 text-xs">{t(`tasks.frequency.${item.frequency}`) || item.frequency}</td>
-                  <td className="table-td text-slate-500 text-xs">{new Date(item.task_date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
+                  <td className="table-td text-slate-500 text-xs whitespace-nowrap">
+                    {new Date(item.task_date).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </td>
                   {isAdmin && <td className="table-td text-slate-500 text-xs">{item.assigned_to || '—'}</td>}
                   <td className="table-td">
                     {isOverdue(item) ? (
@@ -209,7 +220,7 @@ export default function Tasks() {
             </div>
             <div>
               <label className="form-label">{t('tasks.form.date')}</label>
-              <input type="date" className="form-input" value={form.task_date} onChange={e => setForm(f => ({ ...f, task_date: e.target.value }))} />
+              <input type="datetime-local" className="form-input" value={form.task_date} onChange={e => setForm(f => ({ ...f, task_date: e.target.value }))} />
             </div>
             <div>
               <label className="form-label">{t('tasks.form.engineer')}</label>
