@@ -20,6 +20,7 @@ class TaskCreate(TaskBase):
 class TaskOut(TaskBase):
     id: int
     last_reminded_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

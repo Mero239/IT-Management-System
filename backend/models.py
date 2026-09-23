@@ -34,6 +34,9 @@ class EngineerTask(Base):
     assigned_to = Column(String(200), nullable=True)
     status = Column(String(20), default="pending")        # pending | done
     last_reminded_at = Column(UTCDateTime, nullable=True)
+    completed_at = Column(UTCDateTime, nullable=True)      # when status last became "done" — used to detect a new
+                                                            # daily/weekly/monthly cycle so the task auto-resets to
+                                                            # pending and gets reminded again, as if never done
     created_at = Column(UTCDateTime, server_default=func.now())
 
 

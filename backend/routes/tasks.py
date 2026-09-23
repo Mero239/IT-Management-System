@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -69,8 +70,14 @@ def update_task(task_id: int, data: schemas.TaskCreate, db: Session = Depends(ge
     payload = data.model_dump()
     if not _is_admin(engineer):
         payload["assigned_to"] = engineer.name
+    was_done = obj.status == "done"
     for k, v in payload.items():
         setattr(obj, k, v)
+    if obj.status == "done" and not was_done:
+        obj.completed_at = datetime.now(timezone.utc)
+    elif obj.status == "pending":
+        obj.completed_at = None
+        obj.last_reminded_at = None
     db.commit()
     db.refresh(obj)
     return obj

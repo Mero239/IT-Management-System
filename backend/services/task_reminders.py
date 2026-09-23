@@ -38,6 +38,33 @@ def _is_overdue(task, today: date) -> bool:
     return task.last_reminded_at is not None
 
 
+def _reset_recurring_cycles(db, today: date) -> int:
+    """A daily/weekly/monthly task marked 'done' should come back to life —
+    as if it was never done — once its next occurrence is due, so it gets
+    actioned (and reminded about) again instead of staying done forever."""
+    import models
+
+    tasks = db.query(models.EngineerTask).filter(
+        models.EngineerTask.status == "done",
+        models.EngineerTask.frequency.in_(["daily", "weekly", "monthly"]),
+    ).all()
+    reset = 0
+    for task in tasks:
+        if not _is_due_today(task, today):
+            continue
+        completed = task.completed_at.date() if isinstance(task.completed_at, datetime) else task.completed_at
+        if completed == today:
+            continue  # this cycle's occurrence was already completed today — nothing to reset yet
+        task.status = "pending"
+        task.completed_at = None
+        task.last_reminded_at = None
+        reset += 1
+    if reset:
+        db.commit()
+        logger.info(f"Reset {reset} recurring task(s) to pending for a new cycle")
+    return reset
+
+
 def _remind(task, db, overdue=False):
     import models
 
@@ -112,6 +139,7 @@ class TaskReminderService:
         db = SessionLocal()
         try:
             today = date.today()
+            _reset_recurring_cycles(db, today)
             tasks = db.query(models.EngineerTask).filter(models.EngineerTask.status != "done").all()
             for task in tasks:
                 if _already_reminded_today(task, today):
