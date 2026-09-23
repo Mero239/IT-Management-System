@@ -27,6 +27,12 @@ DEFAULT_CONFIG = {
     "whatsapp_access_token": "",
     "whatsapp_phone_number_id": "",
     "whatsapp_verify_token": "",
+    # Telegram usernames (no leading @, lowercase) allowed to request the
+    # live server-monitor report by chatting "server report" / "تقرير
+    # السيرفرات" to the bot. The bot is reachable from the public new-ticket
+    # page, so this must stay an explicit allowlist — never answered for
+    # anyone not on it.
+    "server_report_usernames": [],
 }
 
 PRIORITY_LABELS = {
@@ -41,6 +47,21 @@ CATEGORY_QUESTION = {
     "ar": "ما نوع المشكلة؟",
     "en": "What type of problem is this?",
 }
+
+# Recognizes a "send me the server status" chat command in Arabic or English —
+# requires both a report/status word and a server/servers word together, to
+# avoid matching an ordinary ticket message that just happens to mention
+# "server" (e.g. "the server is down, please help").
+_SERVER_REPORT_REPORT_WORDS = ("تقرير", "حالة", "report", "status")
+_SERVER_REPORT_SERVER_WORDS = ("سيرفر", "سيرفرات", "الخوادم", "خادم", "خوادم", "server", "servers")
+_SERVER_REPORT_BARE = {"السيرفرات", "الخوادم", "سيرفرات", "servers", "server", "server status", "server report", "servers status", "servers report"}
+
+
+def _is_server_report_request(text: str) -> bool:
+    t = text.strip().lower()
+    if t in _SERVER_REPORT_BARE:
+        return True
+    return any(w in t for w in _SERVER_REPORT_REPORT_WORDS) and any(w in t for w in _SERVER_REPORT_SERVER_WORDS)
 
 
 def load_config() -> dict:
@@ -158,6 +179,26 @@ class TelegramBot:
             ]
         }
         self._send(token, chat_id, PRIORITY_QUESTION.get(lang, PRIORITY_QUESTION["ar"]), reply_markup=keyboard)
+
+    def _maybe_send_server_report(self, token: str, chat_id: int, username: str, text: str, cfg: dict) -> bool:
+        """If this looks like a server-report request and the sender is on the
+        allowlist, reply with the live server-monitor report and return True
+        (message handled). Otherwise return False so the caller falls through
+        to the normal ticket-creation flow — including for an unrecognized
+        username, so we never confirm or deny the feature's existence to
+        unauthorized senders."""
+        if not _is_server_report_request(text):
+            return False
+        allowed = {u.lower().lstrip("@") for u in cfg.get("server_report_usernames", [])}
+        if not username or username.lower() not in allowed:
+            return False
+        try:
+            from services.monitor import build_report, load_config as monitor_load_config
+            self._send(token, chat_id, build_report(monitor_load_config()))
+        except Exception as e:
+            logger.error(f"Failed to build/send server report: {e}")
+            self._send(token, chat_id, "❌ تعذر جلب تقرير السيرفرات حاليًا")
+        return True
 
     def _create_ticket(self, text: str, name: str, username: str, priority: str, chat_id: int, category: str | None = None) -> int | None:
         from database import SessionLocal
@@ -333,6 +374,10 @@ class TelegramBot:
         if text.startswith("/"):
             key = f"welcome_{lang}"
             self._send(token, chat_id, cfg.get(key, DEFAULT_CONFIG[key]))
+            return
+
+        # 🖥️ "server report" / "تقرير السيرفرات" — allowlisted usernames only
+        if self._maybe_send_server_report(token, chat_id, username, text, cfg):
             return
 
         # Store message, ask for problem type first, then priority

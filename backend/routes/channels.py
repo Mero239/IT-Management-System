@@ -40,6 +40,7 @@ class TelegramConfig(BaseModel):
     whatsapp_access_token: str | None = None
     whatsapp_phone_number_id: str | None = None
     whatsapp_verify_token: str | None = None
+    server_report_usernames: list[str] | None = None
 
 
 @router.get("/config")

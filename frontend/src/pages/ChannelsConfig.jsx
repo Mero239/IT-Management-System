@@ -76,6 +76,7 @@ function TelegramTab({ t }) {
         welcome_en:  cfg.welcome_en || '',
         success_ar:  cfg.success_ar || '',
         success_en:  cfg.success_en || '',
+        server_report_usernames: (cfg.server_report_usernames || []).join(', '),
       })
     } catch (e) { console.error(e) }
   }
@@ -95,7 +96,12 @@ function TelegramTab({ t }) {
   const saveSettings = async () => {
     setSaving(true)
     try {
-      await apiFetch('/channels/config', { method: 'POST', body: JSON.stringify(form) })
+      const payload = {
+        ...form,
+        server_report_usernames: (form.server_report_usernames || '')
+          .split(',').map(s => s.trim().replace(/^@/, '')).filter(Boolean),
+      }
+      await apiFetch('/channels/config', { method: 'POST', body: JSON.stringify(payload) })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
       await load()
@@ -227,6 +233,20 @@ function TelegramTab({ t }) {
             <label className="form-label">{t('ch.tgSuccessEn')}</label>
             <textarea className="form-input !text-sm" rows={3} value={form.success_en || ''} onChange={e => setForm(f => ({ ...f, success_en: e.target.value }))} dir="ltr" />
             <p className="text-xs text-slate-400 mt-1">Use {`#{id}`} for ticket number</p>
+          </div>
+
+          {/* Server report allowlist */}
+          <div>
+            <label className="form-label">🖥️ المصرح لهم بطلب تقرير السيرفرات</label>
+            <input
+              className="form-input !text-sm font-mono" dir="ltr"
+              placeholder="username1, username2"
+              value={form.server_report_usernames || ''}
+              onChange={e => setForm(f => ({ ...f, server_report_usernames: e.target.value }))}
+            />
+            <p className="text-xs text-slate-400 mt-1">
+              أسماء مستخدمي تيليجرام (بدون @، افصل بينهم بفاصلة) المسموح لهم إن لما يكتبوا "تقرير السيرفرات" أو "server report" للبوت، يوصلهم تقرير حالة السيرفرات فورًا.
+            </p>
           </div>
         </div>
 
