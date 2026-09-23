@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical']
 const STATUSES = ['open', 'in_progress', 'resolved', 'closed']
+const SLA_HOURS_BY_PRIORITY = { critical: 4, high: 24, medium: 72, low: 168 }
 
 const STATUS_COLORS = {
   open: 'bg-red-100 text-red-600',
@@ -437,6 +438,19 @@ export default function Tickets() {
             <select className="form-select" value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}>
               {PRIORITIES.map((k) => <option key={k} value={k}>{t(`priority.${k}`)}</option>)}
             </select>
+            {(() => {
+              const hours = SLA_HOURS_BY_PRIORITY[form.priority] ?? 72
+              const from = editing?.created_at ? new Date(editing.created_at) : new Date()
+              const due = new Date(from.getTime() + hours * 3600 * 1000)
+              const breached = due < new Date()
+              const locale = language === 'ar' ? 'ar-EG' : 'en-US'
+              return (
+                <p className={`text-xs mt-1.5 ${breached ? 'text-red-500 font-medium' : 'text-slate-400'}`}>
+                  {t('tickets.form.slaPreview').replace('{date}', due.toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}
+                  {breached && <><br />{t('tickets.form.slaBreachedWarning')}</>}
+                </p>
+              )
+            })()}
           </div>
           <div>
             <label className="form-label">{t('tickets.form.status')}</label>
