@@ -137,7 +137,11 @@ export default function Tasks() {
             <tbody className="divide-y divide-slate-50">
               {items.map(item => (
                 <tr key={item.id} className={`hover:bg-slate-50/50 ${isOverdue(item) ? 'bg-red-50/50' : ''}`}>
-                  <td className="table-td font-medium text-slate-800">{item.title}</td>
+                  <td className="table-td">
+                    <button onClick={() => openEdit(item)} className="font-medium text-slate-800 hover:text-yellow-600 transition-colors text-start">
+                      {item.title}
+                    </button>
+                  </td>
                   <td className="table-td text-slate-500 text-xs">{item.task_type || '—'}</td>
                   <td className="table-td text-slate-500 text-xs">{t(`tasks.frequency.${item.frequency}`) || item.frequency}</td>
                   <td className="table-td text-slate-500 text-xs">{new Date(item.task_date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</td>
