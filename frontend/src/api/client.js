@@ -67,6 +67,7 @@ export const ticketsApi = {
     api.patch(`/tickets/${id}/status`, null, { params: { status, assigned_to, resolution } }),
   assign: (id, engineer_name) =>
     api.patch(`/tickets/${id}/assign`, null, { params: { engineer_name } }),
+  rescheduleSla: (id, data) => api.patch(`/tickets/${id}/reschedule-sla`, data),
   knowledgeBase: (params) => api.get('/tickets/knowledge-base', { params }),
   adminLog: (params) => api.get('/tickets/admin-log', { params }),
   listComments: (id) => api.get(`/tickets/${id}/comments`),

@@ -24,6 +24,19 @@ const PRIORITY_MAP = {
   high:     { label: 'عالية',  color: 'bg-yellow-100 text-yellow-700' },
   critical: { label: 'حرجة',   color: 'bg-red-100 text-red-700 font-bold' },
 }
+const SLA_STATUS_MAP = {
+  on_time: { label: 'ضمن الوقت',      color: 'text-slate-600' },
+  at_risk: { label: 'قريبة من التجاوز', color: 'text-amber-600 font-semibold' },
+  breached:{ label: 'متجاوزة',        color: 'text-red-600 font-bold' },
+  met:     { label: 'تم الالتزام بها', color: 'text-yellow-700 font-semibold' },
+}
+
+function toLocalInput(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 function timeAgo(dateStr) {
   if (!dateStr) return ''
@@ -338,6 +351,10 @@ export default function TicketDetail() {
   const [assigning, setAssigning]             = useState(false)
   const [resolveOpen, setResolveOpen]         = useState(false)
   const [editResOpen, setEditResOpen]         = useState(false)
+  const [rescheduleOpen, setRescheduleOpen]   = useState(false)
+  const [newDueAt, setNewDueAt]               = useState('')
+  const [rescheduleReason, setRescheduleReason] = useState('')
+  const [rescheduling, setRescheduling]       = useState(false)
 
   // comment
   const [commentText, setCommentText]       = useState('')
@@ -374,6 +391,26 @@ export default function TicketDetail() {
     await ticketsApi.updateStatus(id, newStatus, undefined, resolution)
     await loadTicket()
     await loadComments()
+  }
+
+  // ── SLA reschedule ──
+  const openReschedule = () => {
+    const base = ticket.sla_due_at ? new Date(ticket.sla_due_at) : new Date()
+    const from = base > new Date() ? base : new Date()
+    setNewDueAt(toLocalInput(from.toISOString()))
+    setRescheduleReason('')
+    setRescheduleOpen(true)
+  }
+  const handleReschedule = async () => {
+    if (!newDueAt) return
+    setRescheduling(true)
+    try {
+      await ticketsApi.rescheduleSla(id, { new_due_at: new Date(newDueAt).toISOString(), reason: rescheduleReason.trim() || null })
+      setRescheduleOpen(false)
+      await loadTicket()
+      await loadComments()
+      showToast('تم تعديل ميعاد الـSLA')
+    } finally { setRescheduling(false) }
   }
 
   // ── when "حل التذكرة" clicked ──
@@ -527,6 +564,30 @@ export default function TicketDetail() {
             <InfoRow label="نوع المشكلة"  value={ticket.category ? `${CATEGORY_MAP[ticket.category]?.icon || ''} ${CATEGORY_MAP[ticket.category]?.label || ticket.category}` : '—'} icon="🏷️" />
             <InfoRow label="الجهاز المرتبط" value={ticket.asset?.name || '—'} icon="🖥️" />
             <InfoRow label="المسؤول"      value={ticket.assigned_to || 'غير محدد'} icon="🔧" highlight={!!ticket.assigned_to} />
+            {ticket.sla_due_at && (
+              <InfoRow
+                label="ميعاد SLA"
+                icon="⏱️"
+                value={
+                  <span>
+                    {new Date(ticket.sla_due_at).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {' · '}
+                    <span className={SLA_STATUS_MAP[ticket.sla_status]?.color}>{SLA_STATUS_MAP[ticket.sla_status]?.label || ticket.sla_status}</span>
+                  </span>
+                }
+              />
+            )}
+            {ticket.sla_due_override && (
+              <p className="text-xs text-slate-400 -mt-2">
+                تم تعديل الميعاد يدويًا{ticket.sla_reschedule_reason ? ` — ${ticket.sla_reschedule_reason}` : ''}
+              </p>
+            )}
+            {ticket.sla_status === 'breached' && (me?.permission_level === 'admin' || me?.name === ticket.assigned_to) && (
+              <button onClick={openReschedule}
+                className="w-full text-xs font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg py-2 hover:bg-yellow-100 transition-colors">
+                🗓️ إعادة جدولة ميعاد الـSLA
+              </button>
+            )}
             {ticket.csat_rating && (
               <InfoRow label="تقييم مقدّم الطلب" value={'⭐'.repeat(ticket.csat_rating) + ` (${ticket.csat_rating}/5)`} icon="😊" highlight />
             )}
@@ -768,6 +829,38 @@ export default function TicketDetail() {
                 {assigning ? 'جاري التحويل...' : '✅ تأكيد'}
               </button>
               <button onClick={() => setAssignOpen(false)} className="btn-secondary">إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reschedule SLA modal ── */}
+      {rescheduleOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={e => e.target === e.currentTarget && setRescheduleOpen(false)}>
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setRescheduleOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 z-10">
+            <div className="flex items-center gap-2 mb-4">
+              <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
+              <h3 className="font-bold text-slate-800">إعادة جدولة ميعاد الـSLA</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-3 bg-slate-50 rounded-lg p-2">{ticket.title}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="form-label">الميعاد الجديد لإنهاء التذكرة</label>
+                <input type="datetime-local" className="form-input" value={newDueAt} onChange={e => setNewDueAt(e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label">السبب (اختياري)</label>
+                <textarea className="form-input" rows={2} placeholder="مثال: في انتظار رد الموظف..." value={rescheduleReason} onChange={e => setRescheduleReason(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4 pt-3 border-t border-slate-100">
+              <button onClick={handleReschedule} disabled={!newDueAt || rescheduling}
+                className="btn-primary flex-1 justify-center disabled:opacity-50">
+                {rescheduling ? 'جاري الحفظ...' : '✅ تأكيد'}
+              </button>
+              <button onClick={() => setRescheduleOpen(false)} className="btn-secondary">إلغاء</button>
             </div>
           </div>
         </div>

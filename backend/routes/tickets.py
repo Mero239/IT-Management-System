@@ -584,6 +584,44 @@ def update_ticket_status(
     return {"message": "تم التحديث"}
 
 
+@router.patch("/{ticket_id}/reschedule-sla", response_model=schemas.SupportTicketOut)
+def reschedule_sla(
+    ticket_id: int,
+    data: schemas.SlaRescheduleRequest,
+    db: Session = Depends(get_db),
+    engineer=Depends(get_current_engineer),
+):
+    """Let the resolver push out the SLA deadline on a ticket that's already
+    outside its SLA (or about to be) — e.g. a breach that's legitimately
+    waiting on the requester or a third party. Restricted to the assigned
+    engineer or an admin, since it changes what counts as a breach."""
+    obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
+    if engineer.permission_level != "admin" and obj.assigned_to != engineer.name:
+        raise HTTPException(status_code=403, detail="إعادة جدولة ميعاد SLA متاحة فقط للمهندس المسؤول عن التذكرة أو الأدمن")
+
+    old_due = obj.sla_due_at
+    obj.sla_due_override = data.new_due_at
+    obj.sla_reschedule_reason = (data.reason or "").strip() or None
+    # a fresh deadline means the old breach/at-risk flags no longer apply —
+    # let escalation re-fire naturally if the NEW deadline is also missed
+    obj.escalated = "false"
+    obj.sla_nudged = "false"
+    db.commit()
+    db.refresh(obj)
+
+    note = f"⏱️ تم تعديل ميعاد SLA بواسطة {engineer.name}"
+    if old_due:
+        note += f" من {old_due.strftime('%Y-%m-%d %H:%M')}"
+    note += f" إلى {data.new_due_at.strftime('%Y-%m-%d %H:%M')}"
+    if obj.sla_reschedule_reason:
+        note += f" — السبب: {obj.sla_reschedule_reason}"
+    _add_activity(db, ticket_id, note)
+
+    return obj
+
+
 @router.patch("/{ticket_id}/assign")
 def assign_ticket(ticket_id: int, engineer_name: str, db: Session = Depends(get_db), _engineer=Depends(get_current_engineer)):
     obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()

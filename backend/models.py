@@ -184,6 +184,10 @@ class SupportTicket(Base):
     csat_submitted_at = Column(UTCDateTime, nullable=True)
     escalated = Column(String(5), default="false")            # "true" once auto-escalated for this SLA breach risk
     sla_nudged = Column(String(5), default="false")           # "true" once the assigned engineer got an early at-risk reminder
+    sla_due_override = Column(UTCDateTime, nullable=True)     # manually rescheduled deadline (set by the resolver on
+                                                                # an out-of-SLA ticket) — takes precedence over the
+                                                                # priority-computed due date when present
+    sla_reschedule_reason = Column(Text, nullable=True)        # why the deadline was pushed, for the audit trail
     recurring_template_id = Column(Integer, ForeignKey("recurring_ticket_templates.id"), nullable=True)
     created_at = Column(UTCDateTime, server_default=func.now())
     updated_at = Column(UTCDateTime, onupdate=func.now())
@@ -200,6 +204,8 @@ class SupportTicket(Base):
 
     @property
     def sla_due_at(self):
+        if self.sla_due_override:
+            return self.sla_due_override
         if not self.created_at:
             return None
         return self.created_at + timedelta(hours=self.sla_hours)

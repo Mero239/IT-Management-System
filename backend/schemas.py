@@ -201,6 +201,8 @@ class SupportTicketOut(SupportTicketBase):
     sla_hours: Optional[int] = None
     sla_due_at: Optional[datetime] = None
     sla_status: Optional[str] = None
+    sla_due_override: Optional[datetime] = None
+    sla_reschedule_reason: Optional[str] = None
     attachment_original_name: Optional[str] = None
     attachment_size: Optional[int] = None
     csat_rating: Optional[int] = None
@@ -209,6 +211,11 @@ class SupportTicketOut(SupportTicketBase):
     escalated: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class SlaRescheduleRequest(BaseModel):
+    new_due_at: datetime
+    reason: Optional[str] = None
 
 
 class MailboxOut(BaseModel):
