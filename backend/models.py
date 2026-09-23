@@ -40,6 +40,22 @@ class EngineerTask(Base):
     created_at = Column(UTCDateTime, server_default=func.now())
 
 
+class DowntimeIncident(Base):
+    """A logged outage of an IT-managed service — email, internet, SAP, a
+    power cut, etc. — so IT can track how often and for how long each
+    service goes down, and why. No end_time means the incident is still
+    ongoing."""
+    __tablename__ = "downtime_incidents"
+    id = Column(Integer, primary_key=True, index=True)
+    service = Column(String(50), nullable=False)           # email | internet | sap | power | network | server | other
+    title = Column(String(200), nullable=False)
+    reason = Column(Text, nullable=True)
+    start_time = Column(UTCDateTime, nullable=False)
+    end_time = Column(UTCDateTime, nullable=True)           # null == still ongoing
+    logged_by = Column(String(200), nullable=True)
+    created_at = Column(UTCDateTime, server_default=func.now())
+
+
 class EngineerNavConfig(Base):
     """Per-engineer sidebar customization — order/grouping (`sections`) and
     renamed labels (`labels`, {nav key: custom text}). Personal, not shared:

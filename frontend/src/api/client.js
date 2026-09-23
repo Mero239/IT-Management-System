@@ -136,6 +136,13 @@ export const tasksApi = {
   delete: (id) => api.delete(`/tasks/${id}`),
 }
 
+export const downtimeApi = {
+  list: (params) => api.get('/downtime/', { params }),
+  create: (data) => api.post('/downtime/', data),
+  update: (id, data) => api.put(`/downtime/${id}`, data),
+  delete: (id) => api.delete(`/downtime/${id}`),
+}
+
 export const recurringTicketsApi = {
   list: () => api.get('/recurring-tickets/'),
   create: (data) => api.post('/recurring-tickets/', data),

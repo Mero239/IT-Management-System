@@ -26,6 +26,26 @@ class TaskOut(TaskBase):
     model_config = {"from_attributes": True}
 
 
+class DowntimeBase(BaseModel):
+    service: str
+    title: str
+    reason: Optional[str] = None
+    start_time: datetime
+    end_time: Optional[datetime] = None
+
+
+class DowntimeCreate(DowntimeBase):
+    pass
+
+
+class DowntimeOut(DowntimeBase):
+    id: int
+    logged_by: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
 class TicketCategoryCreate(BaseModel):
     label: str
     label_en: Optional[str] = None

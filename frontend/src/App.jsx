@@ -32,6 +32,7 @@ import RecurringTickets from './pages/RecurringTickets'
 import TicketCategories from './pages/TicketCategories'
 import MenuCustomizer from './pages/MenuCustomizer'
 import Tasks from './pages/Tasks'
+import Downtime from './pages/Downtime'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
 import AdminEngineers from './pages/AdminEngineers'
@@ -73,7 +74,7 @@ function RequireAuth({ children }) {
 const TICKETS_ONLY_ALLOWED_PREFIXES = [
   '/', '/tickets', '/sla', '/inbox', '/telegram-tickets', '/whatsapp-tickets',
   '/email-tickets', '/engineer-dashboard', '/knowledge-base', '/settings',
-  '/ticket-reports', '/canned-responses', '/ticket-dashboard', '/tasks', '/menu-customizer',
+  '/ticket-reports', '/canned-responses', '/ticket-dashboard', '/tasks', '/menu-customizer', '/downtime',
 ]
 
 function TicketsOnlyGuard({ children }) {
@@ -166,6 +167,7 @@ export default function App() {
                       <Route path="/admin/ticket-categories" element={<TicketCategories />} />
                       <Route path="/menu-customizer" element={<MenuCustomizer />} />
                       <Route path="/tasks" element={<Tasks />} />
+                      <Route path="/downtime" element={<Downtime />} />
                       <Route path="/admin/monitor"       element={<ServerMonitor />} />
                       <Route path="/telegram-tickets"    element={<TelegramTickets />} />
                       <Route path="/whatsapp-tickets"    element={<WhatsAppTickets />} />

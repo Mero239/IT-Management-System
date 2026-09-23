@@ -19,6 +19,7 @@ export const NAV_CATALOG = {
   'nav.ticketReports':          { to: '/ticket-reports', icon: '📊' },
   'nav.cannedResponses':        { to: '/canned-responses', icon: '💬' },
   'nav.supportAgreement':       { to: '/support-agreement', icon: '🤝' },
+  'nav.downtime':                { to: '/downtime', icon: '🔌' },
   'nav.adminDashboard':         { to: '/admin/dashboard', icon: '📈', adminOnly: true },
   'nav.adminTicketLog':         { to: '/admin/ticket-log', icon: '📋', adminOnly: true },
   'nav.adminTicketRouting':     { to: '/admin/ticket-routing', icon: '🧭', adminOnly: true },
@@ -56,7 +57,7 @@ export const DEFAULT_STRUCTURE = [
   { key: 'nav.dashboard' },
   { key: 'nav.ticketingSystem', children: [
     'nav.tasks', 'nav.tickets', 'nav.sla', 'nav.inbox', 'nav.telegramTickets', 'nav.whatsappTickets', 'nav.emailTickets',
-    'nav.myTickets', 'nav.knowledgeBase', 'nav.ticketReports', 'nav.supportAgreement',
+    'nav.myTickets', 'nav.knowledgeBase', 'nav.ticketReports', 'nav.supportAgreement', 'nav.downtime',
     'nav.adminDashboard', 'nav.adminTicketLog', 'nav.adminTicketRouting', 'nav.adminRecurringTickets',
     'nav.adminTicketCategories', 'nav.adminChannels', 'nav.emailAgent',
   ] },
