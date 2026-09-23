@@ -12,9 +12,6 @@ export const NAV_CATALOG = {
   'nav.tickets':                { to: '/tickets', icon: '🎫' },
   'nav.sla':                    { to: '/sla', icon: '⏱️' },
   'nav.inbox':                  { to: '/inbox', icon: '📥' },
-  'nav.telegramTickets':        { to: '/telegram-tickets', icon: '✈️' },
-  'nav.whatsappTickets':        { to: '/whatsapp-tickets', icon: '💬' },
-  'nav.emailTickets':           { to: '/email-tickets', icon: '✉️' },
   'nav.myTickets':              { to: '/engineer-dashboard', icon: '👷' },
   'nav.knowledgeBase':          { to: '/knowledge-base', icon: '📚' },
   'nav.ticketReports':          { to: '/ticket-reports', icon: '📊' },
@@ -57,7 +54,7 @@ export const NAV_CATALOG = {
 export const DEFAULT_STRUCTURE = [
   { key: 'nav.dashboard' },
   { key: 'nav.ticketingSystem', children: [
-    'nav.ticketDashboard', 'nav.tasks', 'nav.tickets', 'nav.sla', 'nav.inbox', 'nav.telegramTickets', 'nav.whatsappTickets', 'nav.emailTickets',
+    'nav.ticketDashboard', 'nav.tasks', 'nav.tickets', 'nav.sla', 'nav.inbox',
     'nav.myTickets', 'nav.knowledgeBase', 'nav.ticketReports', 'nav.supportAgreement', 'nav.downtime',
     'nav.adminDashboard', 'nav.adminTicketLog', 'nav.adminTicketRouting', 'nav.adminRecurringTickets',
     'nav.adminTicketCategories', 'nav.adminChannels', 'nav.emailAgent',

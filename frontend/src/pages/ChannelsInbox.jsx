@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ticketsApi, engineersApi, API_BASE } from '../api/client'
+import { ticketsApi, engineersApi, departmentsApi, API_BASE } from '../api/client'
 import { useLanguage } from '../context/LanguageContext'
 import api from '../api/client'
 
@@ -81,6 +81,159 @@ function AssignModal({ ticket, engineers, onClose, onSave }) {
             className="btn-primary flex-1 !py-2 !text-sm"
           >
             {saving ? '...' : 'حفظ'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── New ticket modal (manually log a ticket from any channel) ────────────────
+
+const NEW_TICKET_EMPTY = {
+  source: 'whatsapp', title: '', requester_name: '', contact: '',
+  description: '', priority: 'medium', department_id: '', assigned_to: '',
+}
+
+function NewTicketModal({ defaultSource, departments, engineers, onClose, onCreated, language }) {
+  const isAr = language === 'ar'
+  const [form, setForm] = useState({ ...NEW_TICKET_EMPTY, source: defaultSource === 'manual' || defaultSource === 'all' ? 'whatsapp' : defaultSource })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const submit = async () => {
+    if (!form.title.trim()) { setError(isAr ? 'العنوان مطلوب' : 'Title is required'); return }
+    setSaving(true)
+    try {
+      let requester_email = ''
+      if (form.source === 'whatsapp' && form.contact) requester_email = `wa:${form.contact.replace(/\D/g, '')}`
+      else if (form.source === 'email') requester_email = form.contact
+      const payload = {
+        title: form.title,
+        requester_name: form.requester_name || (isAr ? 'مستخدم' : 'User'),
+        requester_email,
+        description: form.description,
+        priority: form.priority,
+        department_id: form.department_id ? Number(form.department_id) : null,
+        assigned_to: form.assigned_to || null,
+        source: form.source,
+        status: 'open',
+      }
+      const res = await ticketsApi.create(payload)
+      onCreated(res.data)
+    } catch (e) {
+      setError(isAr ? 'حدث خطأ، حاول مرة أخرى' : 'Error, please try again')
+    } finally { setSaving(false) }
+  }
+
+  const contactLabel = form.source === 'whatsapp' ? (isAr ? 'رقم واتساب' : 'WhatsApp Number')
+    : form.source === 'email' ? (isAr ? 'البريد الإلكتروني' : 'Email')
+    : null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4">
+      <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+          <div className="flex items-center gap-2">
+            <img src="/mobica-logo.png" alt="Mobica" className="h-4 w-auto shrink-0" />
+            <h3 className="font-bold text-slate-800 text-sm">{isAr ? 'تذكرة جديدة' : 'New Ticket'}</h3>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="form-label">{isAr ? 'القناة' : 'Channel'}</label>
+            <div className="grid grid-cols-3 gap-2">
+              {['whatsapp', 'telegram', 'email'].map(s => (
+                <button key={s} type="button" onClick={() => set('source', s)}
+                  className={`py-2 rounded-xl text-xs font-medium border-2 transition-all ${
+                    form.source === s ? 'border-yellow-500 bg-yellow-50 text-yellow-700' : 'border-slate-100 text-slate-500 hover:border-slate-300'
+                  }`}>
+                  {SOURCE_META[s].icon} {SOURCE_META[s].label[language] || SOURCE_META[s].label.ar}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label">{isAr ? 'عنوان المشكلة *' : 'Issue Title *'}</label>
+            <input
+              className={`form-input ${error && !form.title ? 'border-red-400' : ''}`}
+              placeholder={isAr ? 'مثال: مشكلة في الشبكة' : 'e.g. Network issue'}
+              value={form.title}
+              onChange={e => { set('title', e.target.value); setError('') }}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">{isAr ? 'اسم الطالب' : 'Requester Name'}</label>
+              <input className="form-input" placeholder={isAr ? 'اسم المستخدم' : 'User name'}
+                value={form.requester_name} onChange={e => set('requester_name', e.target.value)} />
+            </div>
+            {contactLabel && (
+              <div>
+                <label className="form-label">{contactLabel}</label>
+                <input className="form-input font-mono" dir="ltr"
+                  placeholder={form.source === 'whatsapp' ? '+966501234567' : 'name@mobica.net'}
+                  value={form.contact} onChange={e => set('contact', e.target.value)} />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="form-label">{isAr ? 'الأولوية' : 'Priority'}</label>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { v: 'low', ar: '⚪ منخفضة', en: '⚪ Low' },
+                { v: 'medium', ar: '🟡 متوسطة', en: '🟡 Medium' },
+                { v: 'high', ar: '🟠 عالية', en: '🟠 High' },
+                { v: 'critical', ar: '🔴 حرجة', en: '🔴 Critical' },
+              ].map(p => (
+                <button key={p.v} type="button" onClick={() => set('priority', p.v)}
+                  className={`py-2 rounded-xl text-xs font-medium border-2 transition-all ${
+                    form.priority === p.v ? 'border-yellow-500 bg-yellow-50 text-yellow-700' : 'border-slate-100 text-slate-500 hover:border-slate-300'
+                  }`}>
+                  {isAr ? p.ar : p.en}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">{isAr ? 'القسم' : 'Department'}</label>
+              <select className="form-select" value={form.department_id} onChange={e => set('department_id', e.target.value)}>
+                <option value="">{isAr ? '— بدون قسم —' : '— None —'}</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">{isAr ? 'تعيين إلى' : 'Assign To'}</label>
+              <select className="form-select" value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)}>
+                <option value="">{isAr ? '— بدون تعيين —' : '— Unassigned —'}</option>
+                {engineers.filter(e => e.active === 'true').map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label">{isAr ? 'وصف المشكلة' : 'Description'}</label>
+            <textarea className="form-input" rows={3}
+              placeholder={isAr ? 'انسخ الرسالة هنا...' : 'Paste the message here...'}
+              value={form.description} onChange={e => set('description', e.target.value)} />
+          </div>
+
+          {error && <p className="text-xs text-red-500">{error}</p>}
+        </div>
+
+        <div className="flex gap-2 px-5 pb-5">
+          <button onClick={onClose} className="btn-secondary flex-1 !py-2.5">{isAr ? 'إلغاء' : 'Cancel'}</button>
+          <button onClick={submit} disabled={saving} className="btn-primary flex-1 !py-2.5">
+            {saving ? '...' : (isAr ? 'إنشاء التذكرة' : 'Create Ticket')}
           </button>
         </div>
       </div>
@@ -301,10 +454,12 @@ export default function ChannelsInbox() {
 
   const [tickets,   setTickets]   = useState([])
   const [engineers, setEngineers] = useState([])
+  const [departments, setDepartments] = useState([])
   const [botStatus, setBotStatus] = useState(null)
   const [agentStatus, setAgentStatus] = useState(null)
   const [loading,   setLoading]   = useState(true)
   const [lastUpdate, setLastUpdate] = useState(null)
+  const [newTicketOpen, setNewTicketOpen] = useState(false)
 
   // Filters
   const [channel,        setChannel]        = useState('all')
@@ -341,6 +496,7 @@ export default function ChannelsInbox() {
     } catch {}
   }, [])
 
+  useEffect(() => { departmentsApi.list().then(r => setDepartments(r.data)).catch(() => {}) }, [])
   useEffect(() => { load(); loadStatuses() }, [load, loadStatuses])
   useEffect(() => {
     const id = setInterval(() => { load(); loadStatuses() }, 30000)
@@ -440,6 +596,9 @@ export default function ChannelsInbox() {
             </span>
           )}
           <button onClick={() => { load(); loadStatuses() }} className="btn-secondary !py-1.5 !px-3 !text-xs">🔄</button>
+          <button onClick={() => setNewTicketOpen(true)} className="btn-primary !py-1.5 !px-3 !text-xs">
+            + {isAr ? 'تذكرة جديدة' : 'New Ticket'}
+          </button>
         </div>
       </div>
 
@@ -591,6 +750,17 @@ export default function ChannelsInbox() {
             />
           ))}
         </div>
+      )}
+
+      {newTicketOpen && (
+        <NewTicketModal
+          defaultSource={channel}
+          departments={departments}
+          engineers={engineers}
+          language={language}
+          onClose={() => setNewTicketOpen(false)}
+          onCreated={() => { setNewTicketOpen(false); load() }}
+        />
       )}
     </div>
   )

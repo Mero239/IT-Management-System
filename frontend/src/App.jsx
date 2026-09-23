@@ -45,9 +45,6 @@ import ResetPassword from './pages/ResetPassword'
 import TicketPrint from './pages/TicketPrint'
 import ChannelsConfig from './pages/ChannelsConfig'
 import ServerMonitor from './pages/ServerMonitor'
-import TelegramTickets from './pages/TelegramTickets'
-import WhatsAppTickets from './pages/WhatsAppTickets'
-import EmailTickets from './pages/EmailTickets'
 import ChannelsInbox from './pages/ChannelsInbox'
 import EmployeeDirectory from './pages/EmployeeDirectory'
 import MailboxDashboard from './pages/MailboxDashboard'
@@ -72,8 +69,7 @@ function RequireAuth({ children }) {
 // anything else redirects back to /tickets — this backs up the Sidebar's
 // nav filtering so it can't be bypassed by typing a URL directly.
 const TICKETS_ONLY_ALLOWED_PREFIXES = [
-  '/', '/tickets', '/sla', '/inbox', '/telegram-tickets', '/whatsapp-tickets',
-  '/email-tickets', '/engineer-dashboard', '/knowledge-base', '/settings',
+  '/', '/tickets', '/sla', '/inbox', '/engineer-dashboard', '/knowledge-base', '/settings',
   '/ticket-reports', '/canned-responses', '/ticket-dashboard', '/tasks', '/menu-customizer', '/downtime',
 ]
 
@@ -169,9 +165,9 @@ export default function App() {
                       <Route path="/tasks" element={<Tasks />} />
                       <Route path="/downtime" element={<Downtime />} />
                       <Route path="/admin/monitor"       element={<ServerMonitor />} />
-                      <Route path="/telegram-tickets"    element={<TelegramTickets />} />
-                      <Route path="/whatsapp-tickets"    element={<WhatsAppTickets />} />
-                      <Route path="/email-tickets"       element={<EmailTickets />} />
+                      <Route path="/telegram-tickets"    element={<Navigate to="/inbox" replace />} />
+                      <Route path="/whatsapp-tickets"    element={<Navigate to="/inbox" replace />} />
+                      <Route path="/email-tickets"       element={<Navigate to="/inbox" replace />} />
                       <Route path="/inbox"               element={<ChannelsInbox />} />
                       <Route path="/employees"           element={<EmployeeDirectory />} />
                       <Route path="/employees/discrepancies" element={<EmployeeDiscrepancies />} />
