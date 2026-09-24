@@ -6,9 +6,9 @@ import { useAuth } from '../context/AuthContext'
 import { useDisplay } from '../context/DisplayContext'
 import { DEFAULT_STRUCTURE, resolveStructure, mergeWithDefaults } from '../navConfig'
 
-function NavGroup({ item, isOpen, isActive, onToggle, t, labelFor, collapsed, isAdmin }) {
+function NavGroup({ item, isOpen, isActive, onToggle, t, labelFor, collapsed, isAdmin, isRoot }) {
   const navigate = useNavigate()
-  const visibleChildren = item.children.filter((c) => !c.adminOnly || isAdmin)
+  const visibleChildren = item.children.filter((c) => (!c.adminOnly || isAdmin) && (!c.rootOnly || isRoot))
   const firstAdminIdx = visibleChildren.findIndex((c) => c.adminOnly)
 
   if (collapsed) {
@@ -81,6 +81,7 @@ export default function Sidebar() {
   }
 
   const isAdmin = engineer?.permission_level === 'admin'
+  const isRoot = engineer?.email?.toLowerCase() === 'abo.hagar309@gmail.com'
 
   // The menu's order/grouping is admin-customizable (see /admin/menu-customizer)
   // — icons/routes stay code-defined in navConfig.js, only which items exist
@@ -96,7 +97,7 @@ export default function Sidebar() {
   }, [])
   const labelFor = (key) => labels[key] || t(key)
   const resolvedItems = resolveStructure(structure)
-  const topLevelItems = resolvedItems.filter(i => !i.adminOnly || isAdmin)
+  const topLevelItems = resolvedItems.filter(i => (!i.adminOnly || isAdmin) && (!i.rootOnly || isRoot))
 
   // Users restricted to access_scope 'tickets_only' (or 'it_manager') see
   // nothing but the ticketing system's own channels — flattened, since it's
@@ -104,7 +105,7 @@ export default function Sidebar() {
   const isTicketsOnly = engineer?.access_scope === 'tickets_only' || engineer?.access_scope === 'it_manager'
   const ticketingGroup = resolvedItems.find(i => i.key === 'nav.ticketingSystem')
   const visibleNavItems = isTicketsOnly && ticketingGroup
-    ? ticketingGroup.children.filter((c) => !c.adminOnly || isAdmin)
+    ? ticketingGroup.children.filter((c) => (!c.adminOnly || isAdmin) && (!c.rootOnly || isRoot))
     : topLevelItems
 
   const allGroups = resolvedItems.filter(i => i.children)
@@ -292,6 +293,7 @@ export default function Sidebar() {
               isActive={groupHasActiveChild(item)}
               onToggle={() => toggleGroup(item.key)}
               isAdmin={isAdmin}
+              isRoot={isRoot}
             />
           ) : (
             <NavLink

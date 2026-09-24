@@ -5,13 +5,16 @@ import Header from '../components/Header'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 
-function AdminGuard({ children }) {
+const ROOT_EMAIL = 'abo.hagar309@gmail.com'
+
+function RootGuard({ children }) {
   const { engineer } = useAuth()
   const navigate = useNavigate()
+  const isRoot = engineer?.email?.toLowerCase() === ROOT_EMAIL
   useEffect(() => {
-    if (engineer && engineer.permission_level !== 'admin') navigate('/', { replace: true })
+    if (engineer && !isRoot) navigate('/', { replace: true })
   }, [engineer])
-  if (!engineer || engineer.permission_level !== 'admin') return null
+  if (!engineer || !isRoot) return null
   return children
 }
 
@@ -77,7 +80,7 @@ export default function AdminBackup() {
   const today = () => new Date().toISOString().slice(0, 10)
 
   return (
-    <AdminGuard>
+    <RootGuard>
       <div className="space-y-5 max-w-3xl">
         <Header title={t('backup.title')} subtitle={t('backup.subtitle')} />
 
@@ -122,6 +125,6 @@ export default function AdminBackup() {
           </div>
         )}
       </div>
-    </AdminGuard>
+    </RootGuard>
   )
 }

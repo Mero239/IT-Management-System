@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from routes.auth import get_current_engineer
 from paths import data_path
+from root_config import is_root
 
 router = APIRouter(prefix="/backup", tags=["backup"])
 
@@ -18,8 +19,10 @@ CODE_EXCLUDE_DIRS = {".git", "node_modules", "dist", "__pycache__", ".venv", "ve
 
 
 def _require_admin(engineer):
-    if engineer.permission_level != "admin":
-        raise HTTPException(403, "هذا الإجراء للمسؤولين فقط")
+    # Backups expose the full DB, source code, and logs — restricted to the
+    # root account only, not every admin.
+    if not is_root(engineer):
+        raise HTTPException(403, "هذا الإجراء مقصور على حساب Root فقط")
 
 
 def _ts() -> str:

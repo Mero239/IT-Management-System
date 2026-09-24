@@ -48,7 +48,7 @@ export const NAV_CATALOG = {
   'nav.adminReports':           { to: '/admin/reports', icon: '📈' },
   'nav.adminEngineers':         { to: '/admin/engineers', icon: '🛡️' },
   'nav.adminMonitor':           { to: '/admin/monitor', icon: '📡' },
-  'nav.adminBackup':            { to: '/admin/backup', icon: '💾' },
+  'nav.adminBackup':            { to: '/admin/backup', icon: '💾', rootOnly: true },
 }
 
 // The out-of-the-box arrangement — also what "Reset to default" restores.
@@ -124,12 +124,12 @@ export function resolveStructure(structure) {
         const children = sec.children
           .map(ck => {
             const cmeta = NAV_CATALOG[ck]
-            return cmeta ? { key: ck, to: cmeta.to, icon: cmeta.icon, adminOnly: !!cmeta.adminOnly } : null
+            return cmeta ? { key: ck, to: cmeta.to, icon: cmeta.icon, adminOnly: !!cmeta.adminOnly, rootOnly: !!cmeta.rootOnly } : null
           })
           .filter(Boolean)
         return { key: sec.key, icon: meta.icon, adminOnly: !!meta.adminOnly, children }
       }
-      return { key: sec.key, to: meta.to, icon: meta.icon, end: !!meta.end, adminOnly: !!meta.adminOnly }
+      return { key: sec.key, to: meta.to, icon: meta.icon, end: !!meta.end, adminOnly: !!meta.adminOnly, rootOnly: !!meta.rootOnly }
     })
     .filter(Boolean)
 }
