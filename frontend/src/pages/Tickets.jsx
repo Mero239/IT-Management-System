@@ -66,6 +66,8 @@ export default function Tickets() {
   const [assignTicket, setAssignTicket] = useState(null)
   const [assignEngineer, setAssignEngineer] = useState('')
   const [assigning, setAssigning] = useState(false)
+  const [attachmentFile, setAttachmentFile] = useState(null)
+  const [attachmentError, setAttachmentError] = useState('')
 
   const load = () => {
     setLoading(true)
@@ -86,7 +88,7 @@ export default function Tickets() {
   useEffect(() => { engineersApi.list().then((r) => setEngineers(r.data)) }, [])
   useEffect(() => { ticketCategoriesApi.list().then((r) => setCategories(r.data)) }, [])
 
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setError(''); setModal(true) }
+  const openAdd = () => { setEditing(null); setForm(emptyForm); setError(''); setAttachmentFile(null); setAttachmentError(''); setModal(true) }
   const openEdit = (item) => {
     setEditing(item)
     setForm({
@@ -97,9 +99,17 @@ export default function Tickets() {
       category: item.category || '',
       asset_id: item.asset_id || '',
     })
-    setError(''); setModal(true)
+    setError(''); setAttachmentFile(null); setAttachmentError(''); setModal(true)
   }
   const openDetail = (item) => { setSelected(item); setDetailModal(true) }
+
+  const handlePickAttachment = (file) => {
+    if (!file) { setAttachmentFile(null); return }
+    if (!file.type.startsWith('image/')) { setAttachmentError(t('tickets.errorAttachmentType')); return }
+    if (file.size > 2 * 1024 * 1024) { setAttachmentError(t('tickets.errorAttachmentSize')); return }
+    setAttachmentError('')
+    setAttachmentFile(file)
+  }
 
   const handleSave = async () => {
     if (!form.title.trim()) { setError(t('tickets.errorTitle')); return }
@@ -113,8 +123,14 @@ export default function Tickets() {
         category: form.category || null,
         asset_id: form.asset_id || null,
       }
+      let ticketId = editing?.id
       if (editing) await ticketsApi.update(editing.id, data)
-      else await ticketsApi.create(data)
+      else { const res = await ticketsApi.create(data); ticketId = res.data.id }
+      if (attachmentFile && ticketId) {
+        const fd = new FormData()
+        fd.append('file', attachmentFile)
+        await ticketsApi.uploadAttachment(ticketId, fd)
+      }
       setModal(false); load()
     } catch (e) { setError(e.response?.data?.detail || 'Error') }
     finally { setSaving(false) }
@@ -432,6 +448,28 @@ export default function Tickets() {
               <option value="">{t('tickets.form.none')}</option>
               {assets.map((a) => <option key={a.id} value={a.id}>{a.name}{a.employee_code ? ` (${a.employee_code})` : ''}</option>)}
             </select>
+          </div>
+          <div className="col-span-2">
+            <label className="form-label">{t('tickets.form.attachment')}</label>
+            {attachmentError && <p className="text-xs text-red-500 mb-1.5">{attachmentError}</p>}
+            {editing?.attachment_original_name && !attachmentFile && (
+              <p className="text-xs text-slate-400 mb-1.5">{t('tickets.form.attachmentCurrent').replace('{name}', editing.attachment_original_name)}</p>
+            )}
+            {attachmentFile ? (
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-fit">
+                <span className="text-xs text-slate-600 truncate max-w-[220px]">📎 {attachmentFile.name}</span>
+                <button type="button" onClick={() => setAttachmentFile(null)} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
+              </div>
+            ) : (
+              <>
+                <input id="ticket-attach" type="file" accept="image/*" className="hidden"
+                  onChange={(e) => handlePickAttachment(e.target.files?.[0])} />
+                <label htmlFor="ticket-attach"
+                  className="inline-flex items-center gap-2 text-xs text-slate-500 border border-dashed border-slate-300 rounded-lg px-3 py-2 cursor-pointer hover:border-yellow-400 hover:text-yellow-600 transition-colors">
+                  📎 {t('tickets.form.attachmentPick')}
+                </label>
+              </>
+            )}
           </div>
           <div>
             <label className="form-label">{t('tickets.form.priority')}</label>
