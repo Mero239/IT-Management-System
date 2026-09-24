@@ -16,6 +16,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from services.auth import hash_password, verify_password, create_token, decode_token, DEFAULT_PASSWORD
 from services.email_notifier import send_password_reset_email, send_otp_email, send_otp_admin_notice
+from root_config import is_root
 
 DB_PATH = data_path('it_management.db')
 
@@ -392,6 +393,8 @@ def reset_password(engineer_id: int, current_eng=Depends(get_current_engineer), 
     eng = db.query(models.ITEngineer).filter(models.ITEngineer.id == engineer_id).first()
     if not eng:
         raise HTTPException(status_code=404, detail="المهندس غير موجود")
+    if is_root(eng) and not is_root(current_eng):
+        raise HTTPException(status_code=403, detail="هذا الحساب محمي ولا يمكن لأي مسؤول آخر تعديله")
     eng.password_hash = None
     db.commit()
     return {"message": f"تم إعادة تعيين كلمة مرور {eng.name} إلى الافتراضية ({DEFAULT_PASSWORD})"}

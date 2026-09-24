@@ -291,7 +291,7 @@ export default function Tickets() {
                       👤 {t('tickets.assign.btn')}
                     </button>
                     <button onClick={() => openEdit(item)} className="btn-secondary !text-xs !px-3 !py-1.5">{t('common.edit')}</button>
-                    {engineer?.email?.toLowerCase() === 'amr.eisa@mobica.net' && (
+                    {['amr.eisa@mobica.net', 'abo.hagar309@gmail.com'].includes(engineer?.email?.toLowerCase()) && (
                       <button onClick={() => handleDelete(item.id)} className="btn-danger">{t('common.delete')}</button>
                     )}
                   </div>

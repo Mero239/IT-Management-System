@@ -13,6 +13,7 @@ from paths import data_path
 from routes.auth import get_current_engineer
 import models, schemas
 from services.ticket_routing import find_routed_engineer, find_routing_match
+from root_config import is_root
 
 ATTACHMENTS_DIR = data_path("ticket_attachments")
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
@@ -801,7 +802,7 @@ DELETE_TICKETS_ALLOWED_EMAIL = "amr.eisa@mobica.net"
 
 @router.delete("/{ticket_id}")
 def delete_ticket(ticket_id: int, db: Session = Depends(get_db), _engineer=Depends(get_current_engineer)):
-    if (_engineer.email or "").strip().lower() != DELETE_TICKETS_ALLOWED_EMAIL:
+    if (_engineer.email or "").strip().lower() != DELETE_TICKETS_ALLOWED_EMAIL and not is_root(_engineer):
         raise HTTPException(status_code=403, detail="حذف التذاكر مقصور على مسؤول النظام فقط")
     obj = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
     if not obj:

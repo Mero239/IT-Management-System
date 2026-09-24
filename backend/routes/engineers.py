@@ -4,6 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from database import get_db
 from routes.auth import get_current_engineer
+from root_config import is_root
 import models
 
 router = APIRouter(prefix="/engineers", tags=["engineers"])
@@ -13,6 +14,13 @@ VALID_PERMISSIONS = ["admin", "engineer", "viewer"]
 # system) but additionally sees every engineer's tasks, not just their own —
 # see _can_see_all_tasks() in routes/tasks.py.
 VALID_ACCESS_SCOPES = ["full", "tickets_only", "it_manager"]
+
+
+def _guard_root_target(target, requester):
+    """The root account can only ever be changed by itself — no other admin
+    can edit, demote, deactivate, or delete it."""
+    if is_root(target) and not is_root(requester):
+        raise HTTPException(403, "هذا الحساب محمي ولا يمكن لأي مسؤول آخر تعديله")
 
 
 def _require_admin(engineer):
@@ -108,6 +116,7 @@ def update_engineer(eid: int, data: EngineerCreate, db: Session = Depends(get_db
     obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
     if not obj:
         raise HTTPException(404, "Not found")
+    _guard_root_target(obj, engineer)
     for k, v in data.model_dump().items():
         setattr(obj, k, v)
     db.commit()
@@ -123,6 +132,7 @@ def set_permission(eid: int, permission_level: str, db: Session = Depends(get_db
     obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
     if not obj:
         raise HTTPException(404, "Not found")
+    _guard_root_target(obj, engineer)
     obj.permission_level = permission_level
     db.commit()
     return {"message": "Updated", "permission_level": permission_level}
@@ -136,6 +146,7 @@ def set_access_scope(eid: int, access_scope: str, db: Session = Depends(get_db),
     obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
     if not obj:
         raise HTTPException(404, "Not found")
+    _guard_root_target(obj, engineer)
     obj.access_scope = access_scope
     db.commit()
     return {"message": "Updated", "access_scope": access_scope}
@@ -170,6 +181,7 @@ def toggle_active(eid: int, active: str, db: Session = Depends(get_db), engineer
     obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
     if not obj:
         raise HTTPException(404, "Not found")
+    _guard_root_target(obj, engineer)
     obj.active = active
     db.commit()
     return {"message": "Updated", "active": active}
@@ -181,6 +193,7 @@ def delete_engineer(eid: int, db: Session = Depends(get_db), engineer=Depends(ge
     obj = db.query(models.ITEngineer).filter(models.ITEngineer.id == eid).first()
     if not obj:
         raise HTTPException(404, "Not found")
+    _guard_root_target(obj, engineer)
     db.delete(obj)
     db.commit()
     return {"message": "Deleted"}

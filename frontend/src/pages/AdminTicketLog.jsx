@@ -177,7 +177,7 @@ function BulkStatusModal({ count, onApply, onClose }) {
 export default function AdminTicketLog() {
   const { engineer: me } = useAuth()
   const { t, language, setLanguage } = useLanguage()
-  const canDelete = me?.email?.toLowerCase() === 'amr.eisa@mobica.net'
+  const canDelete = ['amr.eisa@mobica.net', 'abo.hagar309@gmail.com'].includes(me?.email?.toLowerCase())
   const navigate = useNavigate()
   const [urlParams, setUrlParams] = useSearchParams()
 

@@ -6,6 +6,7 @@ import Modal from '../components/Modal'
 import { DEFAULT_PASSWORD } from '../constants'
 
 const ROLES = ['IT Engineer', 'Support Technician', 'Network Engineer', 'Systems Admin', 'IT Manager']
+const ROOT_EMAIL = 'abo.hagar309@gmail.com'
 
 const PERM = {
   admin:    { label: 'مسؤول',  color: 'bg-purple-100 text-purple-700 border-purple-200', dot: 'bg-purple-500', icon: '🛡️' },
@@ -34,7 +35,7 @@ function AdminGuard({ children }) {
 }
 
 // ── Engineer card ─────────────────────────────────────────────────────────────
-function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onToggleScope, onResetPwd, onDelete, onViewTickets }) {
+function EngineerCard({ eng, me, onEdit, onPerm, onToggleActive, onToggleScope, onResetPwd, onDelete, onViewTickets }) {
   const [stats, setStats] = useState(null)
   const [resetting, setResetting] = useState(false)
   const [toggling, setToggling] = useState(false)
@@ -42,6 +43,9 @@ function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onToggleScope, onRe
   const perm = PERM[eng.permission_level] || PERM.engineer
   const scope = SCOPE[eng.access_scope] || SCOPE.full
   const isActive = eng.active === 'true'
+  const isRoot = eng.email?.toLowerCase() === ROOT_EMAIL
+  const viewerIsRoot = me?.email?.toLowerCase() === ROOT_EMAIL
+  const locked = isRoot && !viewerIsRoot
 
   useEffect(() => {
     engineersApi.stats(eng.id).then(r => setStats(r.data)).catch(() => {})
@@ -86,9 +90,9 @@ function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onToggleScope, onRe
           {/* Active toggle */}
           <button
             onClick={handleToggle}
-            disabled={toggling}
-            title={isActive ? 'تعطيل الحساب' : 'تفعيل الحساب'}
-            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${isActive ? 'bg-yellow-500' : 'bg-slate-300'} ${toggling ? 'opacity-50' : ''}`}
+            disabled={toggling || locked}
+            title={locked ? 'حساب محمي' : isActive ? 'تعطيل الحساب' : 'تفعيل الحساب'}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${isActive ? 'bg-yellow-500' : 'bg-slate-300'} ${(toggling || locked) ? 'opacity-50' : ''}`}
           >
             <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${isActive ? 'right-1' : 'left-1'}`} />
           </button>
@@ -99,19 +103,21 @@ function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onToggleScope, onRe
           <span className="badge bg-slate-100 text-slate-600 text-xs">{eng.role}</span>
           <button
             onClick={() => onPerm(eng)}
-            className={`badge border text-xs cursor-pointer hover:opacity-80 transition-opacity ${perm.color}`}
-            title="انقر لتغيير الصلاحية"
+            disabled={locked}
+            className={`badge border text-xs transition-opacity ${perm.color} ${locked ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:opacity-80'}`}
+            title={locked ? 'حساب محمي' : 'انقر لتغيير الصلاحية'}
           >
             {perm.icon} {perm.label}
           </button>
           <button
             onClick={handleToggleScope}
-            disabled={scoping}
-            className={`badge border text-xs cursor-pointer hover:opacity-80 transition-opacity ${scope.color} ${scoping ? 'opacity-50' : ''}`}
-            title="انقر للتبديل بين: كل النظام ← التذاكر فقط ← مدير IT"
+            disabled={scoping || locked}
+            className={`badge border text-xs transition-opacity ${scope.color} ${(scoping || locked) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
+            title={locked ? 'حساب محمي' : 'انقر للتبديل بين: كل النظام ← التذاكر فقط ← مدير IT'}
           >
             {scope.icon} {scope.label}
           </button>
+          {isRoot && <span className="badge bg-purple-100 text-purple-700 text-xs" title="حساب Root — محمي من التعديل">🔒 Root</span>}
           {!isActive && <span className="badge bg-red-100 text-red-500 text-xs">معطّل</span>}
         </div>
       </div>
@@ -138,18 +144,18 @@ function EngineerCard({ eng, onEdit, onPerm, onToggleActive, onToggleScope, onRe
         <button onClick={() => onViewTickets(eng)} className="flex-1 btn-success !text-xs !py-1.5 justify-center">
           🎫 تذاكره
         </button>
-        <button onClick={() => onEdit(eng)} className="flex-1 btn-secondary !text-xs !py-1.5 justify-center">
+        <button onClick={() => onEdit(eng)} disabled={locked} title={locked ? 'حساب محمي' : ''} className="flex-1 btn-secondary !text-xs !py-1.5 justify-center disabled:opacity-40">
           ✏️ تعديل
         </button>
         <button
           onClick={handleReset}
-          disabled={resetting}
+          disabled={resetting || locked}
           className="flex-1 !text-xs !py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-          title="إعادة تعيين كلمة المرور"
+          title={locked ? 'حساب محمي' : 'إعادة تعيين كلمة المرور'}
         >
           {resetting ? '...' : '🔑 كلمة المرور'}
         </button>
-        <button onClick={() => onDelete(eng.id, eng.name)} className="btn-danger !text-xs !py-1.5">
+        <button onClick={() => onDelete(eng.id, eng.name)} disabled={locked} title={locked ? 'حساب محمي' : ''} className="btn-danger !text-xs !py-1.5 disabled:opacity-40">
           🗑️
         </button>
       </div>
@@ -345,6 +351,7 @@ export default function AdminEngineers() {
               <EngineerCard
                 key={eng.id}
                 eng={eng}
+                me={me}
                 onEdit={openEdit}
                 onPerm={handlePerm}
                 onToggleActive={handleToggleActive}
