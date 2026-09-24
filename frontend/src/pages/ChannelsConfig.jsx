@@ -237,16 +237,14 @@ function TelegramTab({ t }) {
 
           {/* Server report allowlist */}
           <div>
-            <label className="form-label">🖥️ المصرح لهم بطلب تقرير السيرفرات</label>
+            <label className="form-label">{t('ch.tgServerReportUsernames')}</label>
             <input
               className="form-input !text-sm font-mono" dir="ltr"
               placeholder="username1, username2"
               value={form.server_report_usernames || ''}
               onChange={e => setForm(f => ({ ...f, server_report_usernames: e.target.value }))}
             />
-            <p className="text-xs text-slate-400 mt-1">
-              أسماء مستخدمي تيليجرام (بدون @، افصل بينهم بفاصلة) المسموح لهم إن لما يكتبوا "تقرير السيرفرات" أو "server report" للبوت، يوصلهم تقرير حالة السيرفرات فورًا.
-            </p>
+            <p className="text-xs text-slate-400 mt-1">{t('ch.tgServerReportUsernamesHint')}</p>
           </div>
         </div>
 
@@ -319,7 +317,7 @@ function WhatsAppTab({ t }) {
         <StepList steps={[t('ch.waStep1'), t('ch.waStep2'), t('ch.waStep3'), t('ch.waStep4')]} />
       </SectionCard>
 
-      <SectionCard title="إعدادات واتساب" icon="⚙️">
+      <SectionCard title={t('ch.waSettingsTitle')} icon="⚙️">
         <div>
           <label className="form-label">{t('ch.waPhone')}</label>
           <input
@@ -443,15 +441,27 @@ function WhatsAppTab({ t }) {
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function ChannelsConfig() {
-  const { t } = useLanguage()
+  const { t, language, setLanguage } = useLanguage()
   const [tab, setTab] = useState('telegram')
 
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">{t('ch.title')}</h1>
-        <p className="text-slate-500 text-sm mt-1">{t('ch.subtitle')}</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">{t('ch.title')}</h1>
+          <p className="text-slate-500 text-sm mt-1">{t('ch.subtitle')}</p>
+        </div>
+        <div className="flex items-center bg-slate-100 rounded-full p-0.5 text-xs font-semibold shrink-0">
+          <button onClick={() => setLanguage('en')}
+            className={`px-2.5 py-1 rounded-full transition-all ${language === 'en' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}>
+            EN
+          </button>
+          <button onClick={() => setLanguage('ar')}
+            className={`px-2.5 py-1 rounded-full transition-all ${language === 'ar' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}>
+            🇪🇬 AR
+          </button>
+        </div>
       </div>
 
       {/* Tab bar */}
