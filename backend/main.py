@@ -15,16 +15,30 @@ from services.recurring_tickets import service as recurring_service
 from services.ticket_autoclose import service as autoclose_service
 from services.task_reminders import service as task_reminder_service
 
-# Persist app logs to a real file (in the same mounted /data volume as the
-# DB) so Administration → Backups can actually produce a logs backup —
-# Python's default logging otherwise only reaches stdout, which is captured
-# by Docker outside the container and unreachable from inside it.
-LOG_DIR = data_path("logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-_file_handler = RotatingFileHandler(os.path.join(LOG_DIR, "app.log"), maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8")
-_file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
-logging.getLogger().addHandler(_file_handler)
-logging.getLogger().setLevel(logging.INFO)
+def _setup_file_logging():
+    """Persist logs for the whole system to a real file (in the same mounted
+    /data volume as the DB) so Administration → Backups can actually produce
+    a logs backup — Python's default logging otherwise only reaches stdout,
+    which Docker captures outside the container and is unreachable from
+    inside it.
+
+    Must run from inside the lifespan startup, not at module import time:
+    uvicorn configures its own logging (via logging.config.dictConfig) as
+    part of server startup, which REPLACES the handler list on the "uvicorn"
+    and "uvicorn.access" loggers — both are also set to propagate=False, so
+    a handler on the root logger alone never sees them. Running this after
+    uvicorn's own config has already applied, and attaching directly to
+    those loggers too, is what makes the file capture the *whole* system
+    (app logs + every HTTP request) instead of just this app's own modules."""
+    log_dir = data_path("logs")
+    os.makedirs(log_dir, exist_ok=True)
+    handler = RotatingFileHandler(os.path.join(log_dir, "app.log"), maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
+    for name in ("", "uvicorn", "uvicorn.access", "uvicorn.error"):
+        logger = logging.getLogger(name)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -59,6 +73,7 @@ _auto_add_missing_columns()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _setup_file_logging()
     # Auto-start email agent
     cfg = email_load_config()
     if cfg.get("enabled") and cfg.get("password") and cfg.get("claude_api_key"):
