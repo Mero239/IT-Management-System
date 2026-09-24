@@ -85,8 +85,11 @@ class EngineerOut(BaseModel):
 
 
 @router.get("/", response_model=List[EngineerOut])
-def list_engineers(db: Session = Depends(get_db)):
-    return db.query(models.ITEngineer).order_by(models.ITEngineer.name).all()
+def list_engineers(db: Session = Depends(get_db), engineer=Depends(get_current_engineer)):
+    rows = db.query(models.ITEngineer).order_by(models.ITEngineer.name).all()
+    if not is_root(engineer):
+        rows = [r for r in rows if not is_root(r)]
+    return rows
 
 
 @router.post("/", response_model=EngineerOut)
