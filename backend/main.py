@@ -1,9 +1,12 @@
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
-from routes import assets, requests, tickets, departments, reports, import_excel, email_agent as email_agent_router, engineers, notifications, auth as auth_router, channels as channels_router, monitor as monitor_router, employees as employees_router, mailboxes as mailboxes_router, licensed_software as licensed_software_router, agreements as agreements_router, ticket_routing as ticket_routing_router, organizations as organizations_router, branches as branches_router, ticket_reports as ticket_reports_router, canned_responses as canned_responses_router, recurring_tickets as recurring_tickets_router, ticket_categories as ticket_categories_router, nav_config as nav_config_router, tasks as tasks_router, downtime as downtime_router
+from paths import data_path
+from routes import assets, requests, tickets, departments, reports, import_excel, email_agent as email_agent_router, engineers, notifications, auth as auth_router, channels as channels_router, monitor as monitor_router, employees as employees_router, mailboxes as mailboxes_router, licensed_software as licensed_software_router, agreements as agreements_router, ticket_routing as ticket_routing_router, organizations as organizations_router, branches as branches_router, ticket_reports as ticket_reports_router, canned_responses as canned_responses_router, recurring_tickets as recurring_tickets_router, ticket_categories as ticket_categories_router, nav_config as nav_config_router, tasks as tasks_router, downtime as downtime_router, backup as backup_router
 from services.email_agent import agent as email_agent, load_config as email_load_config
 from services.telegram_bot import bot as telegram_bot, load_config as tg_load_config
 from services.monitor import monitor as monitor_service, load_config as mon_load_config
@@ -11,6 +14,17 @@ from services.ticket_escalation import service as escalation_service
 from services.recurring_tickets import service as recurring_service
 from services.ticket_autoclose import service as autoclose_service
 from services.task_reminders import service as task_reminder_service
+
+# Persist app logs to a real file (in the same mounted /data volume as the
+# DB) so Administration → Backups can actually produce a logs backup —
+# Python's default logging otherwise only reaches stdout, which is captured
+# by Docker outside the container and unreachable from inside it.
+LOG_DIR = data_path("logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+_file_handler = RotatingFileHandler(os.path.join(LOG_DIR, "app.log"), maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8")
+_file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
+logging.getLogger().addHandler(_file_handler)
+logging.getLogger().setLevel(logging.INFO)
 
 Base.metadata.create_all(bind=engine)
 
@@ -116,6 +130,7 @@ app.include_router(ticket_categories_router.router, prefix="/api")
 app.include_router(nav_config_router.router, prefix="/api")
 app.include_router(tasks_router.router, prefix="/api")
 app.include_router(downtime_router.router, prefix="/api")
+app.include_router(backup_router.router, prefix="/api")
 
 
 @app.get("/")

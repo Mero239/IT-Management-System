@@ -48,6 +48,7 @@ export const NAV_CATALOG = {
   'nav.adminReports':           { to: '/admin/reports', icon: '📈' },
   'nav.adminEngineers':         { to: '/admin/engineers', icon: '🛡️' },
   'nav.adminMonitor':           { to: '/admin/monitor', icon: '📡' },
+  'nav.adminBackup':            { to: '/admin/backup', icon: '💾' },
 }
 
 // The out-of-the-box arrangement — also what "Reset to default" restores.
@@ -69,7 +70,7 @@ export const DEFAULT_STRUCTURE = [
   { key: 'nav.reports' },
   { key: 'nav.import' },
   { key: 'nav.swreport' },
-  { key: 'sidebar.adminSection', children: ['nav.itTeam', 'nav.adminReports', 'nav.adminEngineers', 'nav.adminMonitor'] },
+  { key: 'sidebar.adminSection', children: ['nav.itTeam', 'nav.adminReports', 'nav.adminEngineers', 'nav.adminMonitor', 'nav.adminBackup'] },
 ]
 
 // A saved (per-user) structure is a snapshot from whenever it was last

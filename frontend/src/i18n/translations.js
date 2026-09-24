@@ -66,6 +66,7 @@ export const translations = {
     'nav.adminChannels':   'Channels & Bots',
     'nav.adminTicketRouting': 'Ticket Routing',
     'nav.adminMonitor':    'Server Monitor',
+    'nav.adminBackup':     'Backups',
     'nav.employees':       'Employee Directory',
     'nav.discrepancies':   'Discrepancy Report',
     'nav.mailboxes':       'Mailbox Dashboard',
@@ -498,6 +499,23 @@ export const translations = {
     'downtime.service.network': '🕸️ Network',
     'downtime.service.server': '🖥️ Server',
     'downtime.service.other': '🏷️ Other',
+
+    // --- Backups (Administration) ---
+    'backup.title': '💾 Backups',
+    'backup.subtitle': 'Download a backup of the system database, source code, or application logs',
+    'backup.database.title': 'Database',
+    'backup.database.desc': 'A full copy of the SQLite database — all tickets, engineers, assets and settings.',
+    'backup.code.title': 'Source Code',
+    'backup.code.desc': 'A .zip of the full application source (backend + frontend), including git history.',
+    'backup.code.unavailable': 'Not available — the repository isn\'t mounted into this container.',
+    'backup.logs.title': 'Application Logs',
+    'backup.logs.desc': 'A .zip of the application\'s log files.',
+    'backup.logs.unavailable': 'No log files yet — they accumulate as the app runs.',
+    'backup.download': 'Download',
+    'backup.downloading': 'Preparing download...',
+    'backup.downloadFailed': 'Download failed, please try again',
+    'backup.available': 'Available',
+    'backup.unavailable': 'Unavailable',
 
     // --- Recurring Tickets (scheduled templates) admin page ---
     'recur.title': 'Recurring Scheduled Tickets',
@@ -1136,6 +1154,7 @@ export const translations = {
     'nav.adminChannels':   'القنوات والبوتات',
     'nav.adminTicketRouting': 'توجيه التذاكر',
     'nav.adminMonitor':    'مراقبة السيرفرات',
+    'nav.adminBackup':     'النسخ الاحتياطي',
     'nav.employees':       'دليل الموظفين',
     'nav.discrepancies':   'تقرير الفروقات',
     'nav.mailboxes':       'لوحة البريد الإلكتروني',
@@ -1568,6 +1587,23 @@ export const translations = {
     'downtime.service.network': '🕸️ الشبكة',
     'downtime.service.server': '🖥️ سيرفر',
     'downtime.service.other': '🏷️ أخرى',
+
+    // --- Backups (Administration) ---
+    'backup.title': '💾 النسخ الاحتياطي',
+    'backup.subtitle': 'تنزيل نسخة احتياطية من قاعدة بيانات النظام، أو الكود، أو سجلات التطبيق',
+    'backup.database.title': 'قاعدة البيانات',
+    'backup.database.desc': 'نسخة كاملة من قاعدة بيانات SQLite — كل التذاكر والمهندسين والأصول والإعدادات.',
+    'backup.code.title': 'الكود المصدري',
+    'backup.code.desc': 'ملف .zip يحتوي على كود البرنامج بالكامل (الباك إند والفرونت إند)، بما فيه تاريخ Git.',
+    'backup.code.unavailable': 'غير متاح — مسار المستودع مش مربوط بهذه الحاوية.',
+    'backup.logs.title': 'سجلات التطبيق (Logs)',
+    'backup.logs.desc': 'ملف .zip يحتوي على ملفات سجلات التطبيق.',
+    'backup.logs.unavailable': 'لا توجد ملفات سجلات بعد — بتتجمع مع تشغيل البرنامج.',
+    'backup.download': 'تنزيل',
+    'backup.downloading': 'جاري تجهيز الملف...',
+    'backup.downloadFailed': 'فشل التنزيل، حاول مرة أخرى',
+    'backup.available': 'متاح',
+    'backup.unavailable': 'غير متاح',
 
     // --- Recurring Tickets (scheduled templates) admin page ---
     'recur.title': 'التذاكر الدورية المجدولة',

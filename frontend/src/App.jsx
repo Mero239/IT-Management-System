@@ -33,6 +33,7 @@ import TicketCategories from './pages/TicketCategories'
 import MenuCustomizer from './pages/MenuCustomizer'
 import Tasks from './pages/Tasks'
 import Downtime from './pages/Downtime'
+import AdminBackup from './pages/AdminBackup'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
 import AdminEngineers from './pages/AdminEngineers'
@@ -167,6 +168,7 @@ export default function App() {
                       <Route path="/tasks" element={<Tasks />} />
                       <Route path="/downtime" element={<Downtime />} />
                       <Route path="/admin/monitor"       element={<ServerMonitor />} />
+                      <Route path="/admin/backup"        element={<AdminBackup />} />
                       <Route path="/telegram-tickets"    element={<Navigate to="/inbox" replace />} />
                       <Route path="/whatsapp-tickets"    element={<Navigate to="/inbox" replace />} />
                       <Route path="/email-tickets"       element={<Navigate to="/inbox" replace />} />

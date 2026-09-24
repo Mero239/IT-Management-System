@@ -123,7 +123,17 @@ function ResolveModal({ ticket, onConfirm, onClose }) {
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
   const [canned, setCanned]     = useState([])
+  const [file, setFile]         = useState(null)
+  const [fileError, setFileError] = useState('')
   const textRef = useRef(null)
+
+  const pickFile = (f) => {
+    if (!f) { setFile(null); return }
+    if (!f.type.startsWith('image/')) { setFileError('الملف المسموح به صورة فقط'); return }
+    if (f.size > 2 * 1024 * 1024) { setFileError('الحجم الأقصى المسموح به 2 ميجابايت'); return }
+    setFileError('')
+    setFile(f)
+  }
 
   useEffect(() => { textRef.current?.focus() }, [])
   useEffect(() => { cannedResponsesApi.list().then(r => setCanned(r.data)).catch(() => {}) }, [])
@@ -153,7 +163,7 @@ function ResolveModal({ ticket, onConfirm, onClose }) {
       ? `سبب المشكلة: ${rootCause.trim()}\n\nخطوات الحل:\n${steps.trim()}`
       : steps.trim()
     try {
-      await onConfirm(fullResolution)
+      await onConfirm(fullResolution, file)
       onClose()
     } catch {
       setError('حدث خطأ — يرجى المحاولة مرة أخرى')
@@ -247,6 +257,29 @@ function ResolveModal({ ticket, onConfirm, onClose }) {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* Attachment (optional) */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              مرفق (اختياري) <span className="text-slate-400 font-normal">— صورة توضح الحل</span>
+            </label>
+            {fileError && <p className="text-xs text-red-500 mb-1.5">{fileError}</p>}
+            {file ? (
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-fit">
+                <span className="text-xs text-slate-600 truncate max-w-[200px]">📎 {file.name}</span>
+                <button onClick={() => setFile(null)} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
+              </div>
+            ) : (
+              <>
+                <input id="resolve-attach" type="file" accept="image/*" className="hidden"
+                  onChange={e => pickFile(e.target.files?.[0])} />
+                <label htmlFor="resolve-attach"
+                  className="inline-flex items-center gap-2 text-xs text-slate-500 border border-dashed border-slate-300 rounded-lg px-3 py-2 cursor-pointer hover:border-yellow-400 hover:text-yellow-600 transition-colors">
+                  📎 اضغط لإرفاق صورة
+                </label>
+              </>
             )}
           </div>
         </div>
@@ -358,6 +391,8 @@ export default function TicketDetail() {
 
   // comment
   const [commentText, setCommentText]       = useState('')
+  const [commentFile, setCommentFile]       = useState(null)
+  const [commentFileError, setCommentFileError] = useState('')
   const [authorName, setAuthorName]         = useState('')
   const [sendingComment, setSendingComment] = useState(false)
   const [toast, setToast]                   = useState('')
@@ -418,8 +453,16 @@ export default function TicketDetail() {
     setResolveOpen(true)
   }
 
-  const handleResolveConfirm = async (resolution) => {
+  const handleResolveConfirm = async (resolution, file) => {
     await handleStatusChange('resolved', resolution)
+    if (file) {
+      const fd = new FormData()
+      fd.append('author_name', authorName || 'النظام')
+      fd.append('content', '📎 ملف مرفق مع حل المشكلة')
+      fd.append('file', file)
+      await ticketsApi.addCommentWithAttachment(id, fd)
+      await loadComments()
+    }
     showToast('✅ تم حفظ الحل وتحديث الحالة')
   }
 
@@ -444,11 +487,28 @@ export default function TicketDetail() {
   }
 
   // ── comment ──
+  const handlePickCommentFile = (file) => {
+    if (!file) { setCommentFile(null); return }
+    if (!file.type.startsWith('image/')) { setCommentFileError('الملف المسموح به صورة فقط'); return }
+    if (file.size > 2 * 1024 * 1024) { setCommentFileError('الحجم الأقصى المسموح به 2 ميجابايت'); return }
+    setCommentFileError('')
+    setCommentFile(file)
+  }
+
   const handleAddComment = async () => {
-    if (!commentText.trim()) return
+    if (!commentText.trim() && !commentFile) return
     setSendingComment(true)
     try {
-      await ticketsApi.addComment(id, { author_name: authorName || 'مجهول', content: commentText.trim() })
+      if (commentFile) {
+        const fd = new FormData()
+        fd.append('author_name', authorName || 'مجهول')
+        fd.append('content', commentText.trim())
+        fd.append('file', commentFile)
+        await ticketsApi.addCommentWithAttachment(id, fd)
+        setCommentFile(null)
+      } else {
+        await ticketsApi.addComment(id, { author_name: authorName || 'مجهول', content: commentText.trim() })
+      }
       setCommentText('')
       await loadComments()
     } finally { setSendingComment(false) }
@@ -740,6 +800,13 @@ export default function TicketDetail() {
                         : 'bg-white border border-slate-100 text-slate-700 shadow-sm'
                     }`}>
                       {c.content}
+                      {c.attachment_original_name && (
+                        <a href={ticketsApi.commentAttachmentUrl(id, c.id)} target="_blank" rel="noreferrer"
+                          className={`flex items-center gap-2 rounded-lg p-1.5 mt-1.5 hover:bg-slate-50 transition-colors ${c.content ? 'border-t border-slate-100 pt-2' : ''}`}>
+                          <img src={ticketsApi.commentAttachmentUrl(id, c.id)} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-slate-100" />
+                          <span className="text-xs text-slate-500 truncate">📎 {c.attachment_original_name}</span>
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -756,6 +823,13 @@ export default function TicketDetail() {
                 value={authorName}
                 onChange={e => setAuthorName(e.target.value)}
               />
+              {commentFileError && <p className="text-xs text-red-500">{commentFileError}</p>}
+              {commentFile && (
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-fit">
+                  <span className="text-xs text-slate-600 truncate max-w-[160px]">📎 {commentFile.name}</span>
+                  <button onClick={() => setCommentFile(null)} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
+                </div>
+              )}
               <div className="flex gap-2">
                 <textarea
                   className="input !py-2 !text-sm flex-1 resize-none"
@@ -765,7 +839,11 @@ export default function TicketDetail() {
                   onChange={e => setCommentText(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAddComment() }}
                 />
-                <button onClick={handleAddComment} disabled={!commentText.trim() || sendingComment}
+                <input id="comment-attach" type="file" accept="image/*" className="hidden"
+                  onChange={e => handlePickCommentFile(e.target.files?.[0])} />
+                <label htmlFor="comment-attach"
+                  className="btn-secondary !px-3 self-end cursor-pointer" title="إرفاق صورة">📎</label>
+                <button onClick={handleAddComment} disabled={(!commentText.trim() && !commentFile) || sendingComment}
                   className="btn-primary !px-4 self-end disabled:opacity-40">
                   {sendingComment ? '...' : 'إرسال'}
                 </button>

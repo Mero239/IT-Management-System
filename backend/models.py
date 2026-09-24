@@ -300,6 +300,9 @@ class TicketComment(Base):
     content = Column(Text, nullable=False)
     # type: "comment" = user comment, "activity" = system event (status change, assign, etc.)
     type = Column(String(20), default="comment")
+    attachment_filename = Column(String(300), nullable=True)          # name on disk
+    attachment_original_name = Column(String(300), nullable=True)
+    attachment_size = Column(Integer, nullable=True)
     created_at = Column(UTCDateTime, server_default=func.now())
 
     ticket = relationship("SupportTicket", back_populates="comments")

@@ -15,6 +15,11 @@ services:
       - JWT_SECRET=${JWT_SECRET:-}
     volumes:
       - it_data:/data
+      # Read-only view of the full repo (backend + frontend source, git
+      # history) so Administration → Backups can produce a real source-code
+      # backup from inside the container, not just the backend half that's
+      # baked into the image at /app.
+      - .:/repo:ro
     restart: unless-stopped
 
   frontend:

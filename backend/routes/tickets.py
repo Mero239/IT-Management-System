@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, case, func
@@ -687,6 +687,18 @@ class CommentIn(BaseModel):
     content: str
 
 
+def _comment_out(r: "models.TicketComment") -> dict:
+    return {
+        "id": r.id,
+        "author_name": r.author_name,
+        "content": r.content,
+        "type": r.type,
+        "attachment_original_name": r.attachment_original_name,
+        "attachment_size": r.attachment_size,
+        "created_at": r.created_at,
+    }
+
+
 @router.get("/{ticket_id}/comments")
 def list_comments(ticket_id: int, db: Session = Depends(get_db)):
     rows = (
@@ -695,16 +707,7 @@ def list_comments(ticket_id: int, db: Session = Depends(get_db)):
         .order_by(models.TicketComment.created_at)
         .all()
     )
-    return [
-        {
-            "id": r.id,
-            "author_name": r.author_name,
-            "content": r.content,
-            "type": r.type,
-            "created_at": r.created_at,
-        }
-        for r in rows
-    ]
+    return [_comment_out(r) for r in rows]
 
 
 @router.post("/{ticket_id}/comments")
@@ -720,7 +723,59 @@ def add_comment(ticket_id: int, body: CommentIn, db: Session = Depends(get_db), 
     db.add(c)
     db.commit()
     db.refresh(c)
-    return {"id": c.id, "author_name": c.author_name, "content": c.content, "type": c.type, "created_at": c.created_at}
+    return _comment_out(c)
+
+
+@router.post("/{ticket_id}/comments/with-attachment")
+async def add_comment_with_attachment(
+    ticket_id: int,
+    author_name: str = Form(...),
+    content: str = Form(""),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _engineer=Depends(get_current_engineer),
+):
+    if not db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first():
+        raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_ATTACHMENT_EXT:
+        raise HTTPException(status_code=400, detail="الملفات المسموح بها: صور فقط (jpg, png, gif, webp)")
+    content_bytes = await file.read()
+    if len(content_bytes) > MAX_ATTACHMENT_SIZE:
+        raise HTTPException(status_code=400, detail="الحجم الأقصى المسموح به 2 ميجابايت")
+
+    stored_name = f"{uuid.uuid4().hex}{ext}"
+    with open(os.path.join(ATTACHMENTS_DIR, stored_name), "wb") as f:
+        f.write(content_bytes)
+
+    c = models.TicketComment(
+        ticket_id=ticket_id,
+        author_name=author_name.strip() or "مجهول",
+        content=content.strip(),
+        type="comment",
+        attachment_filename=stored_name,
+        attachment_original_name=file.filename,
+        attachment_size=len(content_bytes),
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return _comment_out(c)
+
+
+@router.get("/{ticket_id}/comments/{comment_id}/attachment")
+def download_comment_attachment(ticket_id: int, comment_id: int, db: Session = Depends(get_db)):
+    c = db.query(models.TicketComment).filter(
+        models.TicketComment.id == comment_id,
+        models.TicketComment.ticket_id == ticket_id,
+    ).first()
+    if not c or not c.attachment_filename:
+        raise HTTPException(status_code=404, detail="لا يوجد مرفق لهذا التعليق")
+    path = os.path.join(ATTACHMENTS_DIR, c.attachment_filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="الملف غير موجود على السيرفر")
+    return FileResponse(path, filename=c.attachment_original_name)
 
 
 @router.delete("/{ticket_id}/comments/{comment_id}")
@@ -732,6 +787,10 @@ def delete_comment(ticket_id: int, comment_id: int, db: Session = Depends(get_db
     ).first()
     if not c:
         raise HTTPException(status_code=404, detail="التعليق غير موجود")
+    if c.attachment_filename:
+        path = os.path.join(ATTACHMENTS_DIR, c.attachment_filename)
+        if os.path.exists(path):
+            os.remove(path)
     db.delete(c)
     db.commit()
     return {"message": "تم الحذف"}

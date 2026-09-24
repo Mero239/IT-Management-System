@@ -72,10 +72,12 @@ export const ticketsApi = {
   adminLog: (params) => api.get('/tickets/admin-log', { params }),
   listComments: (id) => api.get(`/tickets/${id}/comments`),
   addComment: (id, data) => api.post(`/tickets/${id}/comments`, data),
+  addCommentWithAttachment: (id, formData) => api.post(`/tickets/${id}/comments/with-attachment`, formData),
   deleteComment: (ticketId, commentId) => api.delete(`/tickets/${ticketId}/comments/${commentId}`),
   delete: (id) => api.delete(`/tickets/${id}`),
   uploadAttachment: (id, formData) => api.post(`/tickets/${id}/attachment`, formData),
   attachmentUrl: (id) => `${API_BASE}/tickets/${id}/attachment`,
+  commentAttachmentUrl: (ticketId, commentId) => `${API_BASE}/tickets/${ticketId}/comments/${commentId}/attachment`,
 }
 
 export const reportsApi = {
@@ -142,6 +144,13 @@ export const downtimeApi = {
   create: (data) => api.post('/downtime/', data),
   update: (id, data) => api.put(`/downtime/${id}`, data),
   delete: (id) => api.delete(`/downtime/${id}`),
+}
+
+export const backupApi = {
+  status: () => api.get('/backup/status'),
+  downloadDatabase: () => api.get('/backup/database', { responseType: 'blob' }),
+  downloadCode: () => api.get('/backup/code', { responseType: 'blob' }),
+  downloadLogs: () => api.get('/backup/logs', { responseType: 'blob' }),
 }
 
 export const recurringTicketsApi = {
